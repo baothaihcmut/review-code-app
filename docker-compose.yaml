@@ -1,0 +1,17 @@
+services:
+  review-agent:
+    # Context points to the 'review-agent' folder where the Dockerfile is located
+    build: 
+      context: ./review-agent
+      dockerfile: Dockerfile
+    
+    # Maps host port 8000 to container port 8000
+    ports:
+      - "8000:8000"
+    
+    # Loads the GEMINI_API_KEY environment variable from your host system
+    environment:
+      - GEMINI_API_KEY=AIzaSyCQEJejHqiSp-ZRZUai5dDvgKQUwLu-e20
+    
+    # Restart the container if it fails
+    restart: always
