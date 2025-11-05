@@ -1,0 +1,16 @@
+#include <iostream>
+#include <cstring>
+using namespace std;
+
+void process(const char str[], char outstr[]) {
+    // STUDENT_CODE_HERE
+}
+
+int main() {
+    char input[1000];
+    cin.getline(input, 1000);
+    char output[1000];
+    process(input, output);
+    cout << output;
+    return 0;
+}

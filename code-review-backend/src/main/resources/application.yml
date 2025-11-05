@@ -1,0 +1,9 @@
+server:
+  port: 8080
+
+jobe:
+  base-url: ${JOBE_URL}
+
+
+review: 
+  url: ${REVIEW_AGENT_URL}

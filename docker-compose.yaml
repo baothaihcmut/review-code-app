@@ -1,9 +1,19 @@
 services:
+
+  jobe:
+    image: trampgeek/jobeinabox
+    container_name: jobe-server
+    ports:
+      - "4000:80"
+    restart: always
+    networks:
+      - app-network
+
+
   review-agent:
     # Context points to the 'review-agent' folder where the Dockerfile is located
-    build: 
-      context: ./review-agent
-      dockerfile: Dockerfile
+    image: dcberr/review-agent:0.0.1
+    container_name: review-agent
     
     # Maps host port 8000 to container port 8000
     ports:
@@ -15,3 +25,23 @@ services:
     
     # Restart the container if it fails
     restart: always
+    networks:
+      - app-network
+
+  backend:
+    image: dcberr/code-review-backend:0.0.1 
+    container_name: spring-backend
+    ports:
+      - "8080:8080"
+    depends_on:
+      - jobe
+    environment:
+      - JOBE_URL=http://jobe-server/jobe/index.php/restapi
+      - REVIEW_AGENT_URL=http://review-agent:8000/review_code_agentic
+    restart: always
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
