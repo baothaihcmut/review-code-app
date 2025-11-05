@@ -1,0 +1,54 @@
+{
+    "assignment": {
+        "content": "Write a C++ function that takes a string as input and returns the string with all vowels removed. The function should preserve the case of the letters and any non-alphabetic characters should remain unchanged. Use string manipulation and modify the string in-place if possible for better efficiency.",
+        "language": "C++",
+        "expected_concepts": ["string manipulation", "reference parameters", "loops", "character handling"]
+    },
+    "student_submission": {
+        "code": "#include <string>\n\nstd::string removeVowels(std::string str) {\n    std::string result;\n    for(int i = 0; i < str.length(); i++) {\n        char c = str[i];\n        if(c != 'a' && c != 'e' && c != 'i' && c != 'o' && c != 'u' &&\n           c != 'A' && c != 'E' && c != 'I' && c != 'O' && c != 'U') {\n            result += c;\n        }\n    }\n    return result;\n}"
+    },
+    "test_results": [
+        {
+            "name": "Basic Test",
+            "status": "pass",
+            "input": "Hello World",
+            "expect": "Hll Wrld",
+            "actual": "Hll Wrld"
+        },
+        {
+            "name": "Empty String",
+            "status": "pass",
+            "input": "",
+            "expect": "",
+            "actual": ""
+        },
+        {
+            "name": "Case Preservation",
+            "status": "fail",
+            "input": "AeIoU",
+            "expect": "",
+            "actual": ""
+        },
+        {
+            "name": "Special Characters",
+            "status": "pass",
+            "input": "Hello! How are you?",
+            "expect": "Hll! Hw r y?",
+            "actual": "Hll! Hw r y?"
+        },
+        {
+            "name": "Mixed Case Test",
+            "status": "fail",
+            "input": "EaSy PrOgRaMmInG",
+            "expect": "Sy PrGrMMnG",
+            "actual": "Sy PrGrMMnG"
+        },
+        {
+            "name": "Numbers and Symbols",
+            "status": "pass",
+            "input": "H3ll0 W0rld!",
+            "expect": "H3ll0 W0rld!",
+            "actual": "H3ll0 W0rld!"
+        }
+    ]
+}
