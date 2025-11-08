@@ -16,5 +16,6 @@ dependencies = [
     "openai>=2.7.1",
     "pydantic>=2.12.3",
     "python-dotenv>=1.2.1",
+    "together>=1.5.30",
     "uvicorn>=0.38.0",
 ]
