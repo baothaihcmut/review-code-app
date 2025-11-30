@@ -9,7 +9,7 @@ from app.api.review_code_schema import (
     ReviewRequest,
     ReviewResponse,
 )
-from app.models.review_state import ReviewState, SandBoxResult, create_initial_state
+from app.models.review_state import ReviewState, create_initial_state
 from app.services.review_code_service import ReviewCodeService
 
 logger = logging.getLogger(__name__)

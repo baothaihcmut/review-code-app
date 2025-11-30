@@ -14,7 +14,7 @@ RUN pip install uv \
     && uv pip install . --system
 
 # Copy the application code into the container
-COPY main.py .
+COPY . .
 
 # Expose the port that Uvicorn will run on
 EXPOSE 8000
