@@ -32,11 +32,10 @@ export default function ProblemPanel() {
   - Note: Your code MUST NOT contain any of the words in the list {"include", "string"} even in the comment
     `;
   return (
-    <div className="p-3 border rounded-md">
+    <div className="p-3 pr-0 border rounded-md flex flex-col h-full">
       <h2 className="font-semibold p-2">Đề bài</h2>
-
-      <ScrollArea className="h-[200px] w-full">
-        <div className="whitespace-pre-line">
+      <ScrollArea className="min-h-0">
+        <div className="whitespace-pre-line pr-3">
           {problem}
         </div>
       </ScrollArea>

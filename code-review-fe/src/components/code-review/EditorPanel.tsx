@@ -40,7 +40,7 @@ export default function EditorPanel() {
   }, [review]);
 
   return (
-    <div className="p-3 border rounded-md min-h-[400px]">
+    <div className="p-3 border rounded-md h-full">
       <Editor
         language="cpp"
         height="100%"
