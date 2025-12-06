@@ -16,7 +16,7 @@ export default function ReviewPanel() {
   const handleReview = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("⁦http://localhost:8080/api/review⁩", {
+      const res = await fetch("http://localhost:8080/api/review", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -49,7 +49,7 @@ export default function ReviewPanel() {
 
       <Separator className="my-3" />
 
-      <ScrollArea className="flex-1 text-sm space-y-3">
+      {/* <ScrollArea className="flex-1 text-sm space-y-3">
         {review?.review_items?.map((item: any, i: number) => (
           <div key={i} className="border p-2 rounded">
             <div className="font-semibold">🔍 {item.type}</div>
@@ -59,7 +59,23 @@ export default function ReviewPanel() {
             </div>
           </div>
         ))}
-      </ScrollArea>
+      </ScrollArea> */}
+      {/* Scrollable area */}
+      <div className="flex-1 min-h-0">
+        <ScrollArea className="h-full">
+          <div className="space-y-3 text-sm p-1">
+            {review?.review_items?.map((item: any, i: number) => (
+              <div key={i} className="border p-2 rounded">
+                <div className="font-semibold">🔍 {item.type}</div>
+                <div className="text-gray-800">{item.issue}</div>
+                <div className="text-gray-500 text-xs">
+                  Gợi ý: {item.fix_suggestion}
+                </div>
+              </div>
+            ))}
+          </div>
+        </ScrollArea>
+      </div>
     </Card>
   );
 }
