@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useState } from "react";
+import { MessageResponse } from "../ai-elements/message";
+import { Skeleton } from "../ui/skeleton";
 
 export default function ReviewPanel() {
   const { code, review, setReview } = useCodeStore() as any;
@@ -39,40 +41,25 @@ export default function ReviewPanel() {
       <div className="flex justify-between items-center">
         <h2 className="font-semibold text-lg">Phản hồi từ AI</h2>
         <Button onClick={handleReview} disabled={isLoading}>
-          {isLoading ? (
-            <Loader2 className="animate-spin" />
-          ) : (
-            "Review Code"
-          )}
+          {isLoading ? <Loader2 className="animate-spin" /> : "Review Code"}
         </Button>
       </div>
 
       <Separator className="my-3" />
 
-      {/* <ScrollArea className="flex-1 text-sm space-y-3">
-        {review?.review_items?.map((item: any, i: number) => (
-          <div key={i} className="border p-2 rounded">
-            <div className="font-semibold">🔍 {item.type}</div>
-            <div className="text-gray-800">{item.issue}</div>
-            <div className="text-gray-500 text-xs">
-              Gợi ý: {item.fix_suggestion}
-            </div>
-          </div>
-        ))}
-      </ScrollArea> */}
-      {/* Scrollable area */}
       <div className="flex-1 min-h-0">
         <ScrollArea className="h-full">
           <div className="space-y-3 text-sm p-1">
-            {review?.review_items?.map((item: any, i: number) => (
-              <div key={i} className="border p-2 rounded">
-                <div className="font-semibold">🔍 {item.type}</div>
-                <div className="text-gray-800">{item.issue}</div>
-                <div className="text-gray-500 text-xs">
-                  Gợi ý: {item.fix_suggestion}
-                </div>
-              </div>
-            ))}
+            {isLoading ? (
+              <>
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-4 w-5/6" />
+                <Skeleton className="h-4 w-4/6" />
+                <Skeleton className="h-4 w-2/3" />
+              </>
+            ) : (
+              <MessageResponse>{review?.summary}</MessageResponse>
+            )}
           </div>
         </ScrollArea>
       </div>
