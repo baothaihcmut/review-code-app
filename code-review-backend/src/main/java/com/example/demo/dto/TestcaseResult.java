@@ -15,7 +15,7 @@ public class TestcaseResult {
     private String input;
     private String expect;
     private String actual;
-    private String errorMessage;
+    // private String errorMessage;
 
     public enum TestcaseStatus {
         PASSED,

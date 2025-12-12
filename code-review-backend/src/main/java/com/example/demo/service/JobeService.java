@@ -40,6 +40,7 @@ public class JobeService {
 
     public RunResponse runCode(RunRequest runRequest) {
         String url = jobeBaseUrl + "/runs";
+        String errorMessage = "";
 
         String template = loadTemplate(runRequest.getAssignment().getLanguage());
 
@@ -51,7 +52,7 @@ public class JobeService {
         List<TestcaseResult> results = new ArrayList<>();
 
         if (runRequest.getTestcase() == null || runRequest.getTestcase().isEmpty()) {
-            return new RunResponse(runRequest.getAssignment(), runRequest.getSubmission(), results);
+            return new RunResponse(runRequest.getAssignment(), runRequest.getSubmission(), results, errorMessage);
         }
 
         for (Testcase testcase : runRequest.getTestcase()) {    
@@ -78,7 +79,7 @@ public class JobeService {
 
             log.info(jobeResponse.toString());
 
-            String errorMessage = jobeResponse != null ? jobeResponse.getCmpinfo() : "";
+            errorMessage = jobeResponse != null ? jobeResponse.getCmpinfo() : "";
             String actualOutput = jobeResponse != null ? jobeResponse.getStdout() : "";
             String expectedOutput = testcase.getExpect() == null ? "" : testcase.getExpect();
 
@@ -94,8 +95,7 @@ public class JobeService {
                     status,
                     input,
                     expectedOutput,
-                    actualOutput,
-                    errorMessage
+                    actualOutput
                 )
             );
         }
@@ -113,7 +113,7 @@ public class JobeService {
         // ResponseEntity<JobeResponse> response = restTemplate.postForEntity(url, request, JobeResponse.class);
         // return response.getBody();
 
-        return new RunResponse(runRequest.getAssignment(), runRequest.getSubmission(), results);
+        return new RunResponse(runRequest.getAssignment(), runRequest.getSubmission(), results, errorMessage);
     }
 
 

@@ -18,4 +18,5 @@ public class RunResponse {
     private Assignment assignment;
     private StudentSubmission submission;
     private List<TestcaseResult> testcaseResults;
+    private String errorMessage;
 }
