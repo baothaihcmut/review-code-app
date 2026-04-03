@@ -6,7 +6,7 @@ server:
     include-message: always
     include-binding-errors: always
     include-stacktrace: always
-  url: ${SERVICE_URL}
+  url: "https://bbc-lms.online"
 
 application:
   url: ${APPLICATION_URL}
@@ -68,7 +68,7 @@ spring:
             scope:
               - email
               - profile
-            redirect-uri: "{SERVICE_URL}/login/oauth2/code/google"
+            redirect-uri: "https://bbc-lms.online/api/login/oauth2/code/google"
 
         provider:
           google:
