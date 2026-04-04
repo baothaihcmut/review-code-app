@@ -31,6 +31,16 @@ services:
     networks:
       - app-network
 
+  frontend:
+    # build: code-review-fe/
+    image: dcberr/datn-frontend:latest
+    container_name: frontend
+    ports:
+      - "3000:3000"
+    restart: always
+    networks:
+      - app-network
+
   minio:
     image: minio/minio
     container_name: minio
