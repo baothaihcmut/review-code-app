@@ -60,7 +60,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         getRedirectStrategy().sendRedirect(
                 request,
                 response,
-                applicationUrl + "/oauth-success"
+                applicationUrl + ("student".equals(role) ? "/student/dashboard" : "/lecturer/dashboard")
         );
     }
 }
