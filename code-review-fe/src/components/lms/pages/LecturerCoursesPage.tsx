@@ -1,61 +1,157 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import Link from "next/link"
-import { ArrowRight, Users } from "lucide-react"
+import { type FormEvent, useMemo, useState } from "react"
+import { Plus } from "lucide-react"
 
-import { Badge } from "@/components/ui/badge"
+import CourseBrowser, {
+  type CourseBrowserItem,
+} from "@/components/lms/pages/course-browser/CourseBrowser"
+import SimpleModal from "@/components/lms/SimpleModal"
+import {
+  useCreateClassMutation,
+  useGetMyClassesQuery,
+} from "@/store/redux/api/lmsApi"
+import CreateClassCard from "@/components/lms/pages/lecturer-courses/CreateClassCard"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { getLecturerCourses } from "@/services/lms/mockLmsService"
 
-type ManagedCourse = Awaited<ReturnType<typeof getLecturerCourses>>[number]
+type FeedbackState =
+  | {
+      tone: "success" | "error"
+      message: string
+    }
+  | null
 
 export default function LecturerCoursesPage() {
-  const [courses, setCourses] = useState<ManagedCourse[]>([])
+  const [createModalOpen, setCreateModalOpen] = useState(false)
+  const [draft, setDraft] = useState({
+    name: "",
+    description: "",
+    image: null as File | null,
+    schedule: "",
+  })
+  const [feedback, setFeedback] = useState<FeedbackState>(null)
+  const [highlightedClassId, setHighlightedClassId] = useState<string | null>(null)
+  const {
+    data: classes = [],
+    error,
+    isLoading,
+  } = useGetMyClassesQuery()
+  const [createClass, { isLoading: isCreating }] = useCreateClassMutation()
 
-  useEffect(() => {
-    getLecturerCourses().then(setCourses)
-  }, [])
+  const browserItems = useMemo<CourseBrowserItem[]>(
+    () =>
+      classes.map((item) => ({
+        id: item.id,
+        href: `/lecturer/courses/${item.id}`,
+        title: item.name,
+        instructor: item.instructorName,
+        schedule: item.schedule ?? "Lịch học đang cập nhật",
+        enrolledCount: item.enrolledStudentsCount,
+        imageUrl: item.imageUrl,
+        seed: `lecturer-class-${item.id}`,
+        actionLabel: "Mở lớp học",
+        highlighted: item.id === highlightedClassId,
+      })),
+    [classes, highlightedClassId]
+  )
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+
+    const name = draft.name.trim()
+    const description = draft.description.trim()
+    const image = draft.image
+    const schedule = draft.schedule.trim()
+
+    if (!name || !description) {
+      setFeedback({
+        tone: "error",
+        message: "Tên lớp và mô tả là bắt buộc.",
+      })
+      return
+    }
+
+    try {
+      const createdClass = await createClass({ name, description, image, schedule }).unwrap()
+      setDraft({ name: "", description: "", image: null, schedule: "" })
+      setHighlightedClassId(createdClass.id)
+      setCreateModalOpen(false)
+      setFeedback({
+        tone: "success",
+        message: `Đã tạo lớp "${createdClass.name}".`,
+      })
+    } catch {
+      setFeedback({
+        tone: "error",
+        message: "Không thể tạo lớp. Kiểm tra lại backend hoặc quyền hiện tại.",
+      })
+    }
+  }
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl text-[#030391]">Managed Courses</CardTitle>
-          <p className="text-sm text-slate-500">
-            Open a course to manage topics, upload materials, configure coding assignments, and
-            inspect student submissions.
-          </p>
-        </CardHeader>
-      </Card>
+      {Boolean(error) ? (
+        <CourseBrowser
+          items={[]}
+          title="Lớp học của bạn"
+          description="Tìm nhanh lớp học, chuyển giữa grid và list, và giữ giao diện đồng bộ với bên sinh viên."
+          emptyTitle="Không tải được danh sách lớp."
+          emptyDescription="Kiểm tra backend rồi thử refresh lại danh sách lớp."
+          searchPlaceholder="Tìm theo tên lớp, giảng viên hoặc lịch học..."
+          headerActions={
+            <Button
+              className="rounded-xl bg-[#1717ad] text-white hover:bg-[#1717ad]/90"
+              onClick={() => {
+                setFeedback(null)
+                setCreateModalOpen(true)
+              }}
+            >
+              <Plus className="size-4" />
+              Tạo lớp
+            </Button>
+          }
+        />
+      ) : (
+        <CourseBrowser
+          items={browserItems}
+          title="Lớp học của bạn"
+          description="Tìm nhanh lớp học, chuyển giữa grid và list, và giữ giao diện đồng bộ với bên sinh viên."
+          emptyTitle={isLoading ? "Đang tải lớp học..." : "Chưa có lớp học nào."}
+          emptyDescription={
+            isLoading
+              ? "Danh sách lớp đang được đồng bộ từ backend."
+              : "Dùng nút Tạo lớp để tạo lớp đầu tiên và bắt đầu quản lý nội dung, sinh viên."
+          }
+          searchPlaceholder="Tìm theo tên lớp, giảng viên hoặc lịch học..."
+          headerActions={
+            <Button
+              className="rounded-xl bg-[#1717ad] text-white hover:bg-[#1717ad]/90"
+              onClick={() => {
+                setFeedback(null)
+                setCreateModalOpen(true)
+              }}
+            >
+              <Plus className="size-4" />
+              Tạo lớp
+            </Button>
+          }
+        />
+      )}
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        {courses.map((course) => (
-          <Card key={course.id} className="border border-slate-200">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <Badge className={`${course.color} text-white`}>{course.code}</Badge>
-                  <h3 className="mt-3 text-xl font-semibold text-[#030391]">{course.name}</h3>
-                  <p className="mt-2 text-sm text-slate-600">{course.description}</p>
-                </div>
-                <Users className="size-6 text-[#1488D8]" />
-              </div>
-              <div className="mt-4 flex flex-wrap gap-4 text-sm text-slate-500">
-                <span>{course.enrolled} students</span>
-                <span>Progress {course.progress}%</span>
-                <span>{course.schedule}</span>
-              </div>
-              <Link href={`/lecturer/courses/${course.id}`}>
-                <Button className="mt-5 rounded-xl bg-[#030391] text-white hover:bg-[#030391]/90">
-                  Open course <ArrowRight className="size-4" />
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <SimpleModal
+        open={createModalOpen}
+        title="Tạo lớp mới"
+        description="Nhập thông tin cơ bản cho lớp học mới của bạn."
+        onClose={() => setCreateModalOpen(false)}
+      >
+        <CreateClassCard
+          draft={draft}
+          feedback={feedback}
+          isCreating={isCreating}
+          onChange={(patch) => setDraft((state) => ({ ...state, ...patch }))}
+          onSubmit={handleSubmit}
+        />
+      </SimpleModal>
     </div>
   )
 }

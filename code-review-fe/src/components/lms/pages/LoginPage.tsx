@@ -2,43 +2,40 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowRight, CheckCircle2, ShieldCheck } from "lucide-react"
+import { ArrowRight, CheckCircle2 } from "lucide-react"
 
-import type { UserRole } from "@/data/lms/extendedMockData"
 import { AuroraBackground } from "@/components/ui/shadcn-io/aurora-background"
 import GoogleLoginButton from "@/components/lms/GoogleLoginButton"
 import RoleSelector from "@/components/lms/RoleSelector"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { dashboardPathByRole, useAuthStore } from "@/store/authStore"
+import { buildGoogleLoginUrl } from "@/lib/auth"
+import { useAppDispatch, useAppSelector } from "@/store/redux/hooks"
+import { authActions, dashboardPathByRole } from "@/store/redux/slices/authSlice"
 
 const platformHighlights = [
-  "Adaptive exercise recommendations from the shared problem bank",
-  "LeetCode-style assignment workspace with AI review feedback",
-  "Lecturer tools for topics, materials, monitoring, and submissions",
+  "Gợi ý bài tập thích ứng từ kho bài tập dùng chung",
+  "Không gian làm bài kiểu LeetCode kèm phản hồi review code bằng AI",
+  "Công cụ cho giảng viên để quản lý topic, tài liệu, theo dõi và bài nộp",
 ]
 
 export default function LoginPage() {
   const router = useRouter()
+  const dispatch = useAppDispatch()
   const [loading, setLoading] = useState(false)
-  const hasHydrated = useAuthStore((state) => state.hasHydrated)
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
-  const selectedRole = useAuthStore((state) => state.selectedRole ?? "student")
-  const setSelectedRole = useAuthStore((state) => state.setSelectedRole)
-  const signInWithGoogle = useAuthStore((state) => state.signInWithGoogle)
+  const { hasHydrated, isAuthenticated, selectedRole } = useAppSelector((state) => state.auth)
+  const resolvedRole = selectedRole ?? "student"
+  const resolvedRoleLabel = resolvedRole === "student" ? "Sinh viên" : "Giảng viên"
 
   useEffect(() => {
     if (hasHydrated && isAuthenticated) {
-      router.replace(dashboardPathByRole[selectedRole])
+      router.replace(dashboardPathByRole[resolvedRole])
     }
-  }, [hasHydrated, isAuthenticated, router, selectedRole])
+  }, [hasHydrated, isAuthenticated, resolvedRole, router])
 
-  const handleLogin = async () => {
-    const role: UserRole = selectedRole
+  const handleLogin = () => {
     setLoading(true)
-    await new Promise((resolve) => setTimeout(resolve, 650))
-    signInWithGoogle(role)
-    router.push(dashboardPathByRole[role])
+    window.location.href = buildGoogleLoginUrl(resolvedRole)
   }
 
   return (
@@ -49,11 +46,10 @@ export default function LoginPage() {
             BK Learning Hub
           </Badge>
           <h1 className="max-w-xl text-4xl font-bold leading-tight">
-            Adaptive programming practice for thesis-scale LMS workflows.
+            Nền tảng học lập trình thích ứng: Phân tích kết quả và gợi ý bài tập tiếp theo dựa trên năng lực
           </h1>
           <p className="mt-4 max-w-2xl text-base text-white/75">
-            Students move through courses, materials, assignments, AI review, and recommended next
-            exercises. Lecturers manage the same ecosystem from one shared interface.
+            Đề tài tập trung phát triển một công cụ phân tích kết quả làm bài lập trình của sinh viên, ứng dụng AI Agent để tự động review code, chỉ ra ưu/nhược điểm và gợi ý cải tiến. Công cụ còn có khả năng đề xuất bài tập tiếp theo phù hợp từ kho bài tập, dựa trên năng lực và tiến trình học tập của từng sinh viên, hướng tới mô hình học tập thích ứng.
           </p>
 
           <div className="mt-8 grid gap-4 md:grid-cols-3">
@@ -67,42 +63,45 @@ export default function LoginPage() {
               </div>
             ))}
           </div>
-
-          <div className="mt-8 flex flex-wrap items-center gap-3 text-sm text-white/75">
-            <ShieldCheck className="size-4 text-[#7ed0ff]" />
-            Mocked Google authentication is enabled when backend auth is not available.
-          </div>
         </section>
 
         <section className="rounded-[2rem] border border-white/80 bg-white/75 p-6 shadow-2xl backdrop-blur-xl md:p-8">
           <div className="mb-6">
             <p className="text-sm font-medium uppercase tracking-[0.2em] text-[#1488D8]">
-              Sign In
+              Đăng nhập
             </p>
-            <h2 className="mt-3 text-3xl font-bold text-[#030391]">Choose role before authentication</h2>
-            <p className="mt-2 text-sm text-slate-600">
-              The selected role is persisted locally so routing can send you to the correct dashboard.
-            </p>
+            <h2 className="mt-3 text-xl font-bold text-[#030391]">
+              Chọn vai trò trước khi xác thực
+            </h2>
           </div>
 
-          <RoleSelector value={selectedRole} onChange={setSelectedRole} />
+          <RoleSelector
+            value={resolvedRole}
+            onChange={(role) => dispatch(authActions.setSelectedRole(role))}
+          />
 
           <div className="mt-6 rounded-3xl border border-[#030391]/10 bg-[#f8fbff] p-5">
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-500">Selected role</p>
-                <p className="text-xl font-semibold text-[#030391]">{selectedRole}</p>
+                <p className="text-sm font-medium text-slate-500">Vai trò đã chọn</p>
+                <p className="text-xl font-semibold text-[#030391]">{resolvedRoleLabel}</p>
               </div>
               <ArrowRight className="size-5 text-[#1488D8]" />
             </div>
-            <GoogleLoginButton role={selectedRole} loading={loading} onClick={handleLogin} />
+            <GoogleLoginButton role={resolvedRole} loading={loading} onClick={handleLogin} />
             <Button
               type="button"
               variant="ghost"
               className="mt-3 w-full rounded-2xl text-[#030391] hover:bg-[#E3F2FD]"
-              onClick={() => setSelectedRole(selectedRole === "student" ? "lecturer" : "student")}
+              onClick={() =>
+                dispatch(
+                  authActions.setSelectedRole(
+                    resolvedRole === "student" ? "lecturer" : "student"
+                  )
+                )
+              }
             >
-              Switch role
+              Đổi vai trò
             </Button>
           </div>
         </section>

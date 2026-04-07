@@ -1,8 +1,9 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import Image from "next/image"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import {
   AlertTriangle,
   Award,
@@ -29,9 +30,11 @@ import { navItemsByRole } from "@/components/lms/navigation"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { logoutCurrentSession } from "@/lib/auth"
 import { cn } from "@/lib/utils"
 import { daysUntil } from "@/components/lms/date"
-import { useAuthStore } from "@/store/authStore"
+import { useAppDispatch, useAppSelector } from "@/store/redux/hooks"
+import { authActions } from "@/store/redux/slices/authSlice"
 
 export default function LmsShell({
   children,
@@ -41,14 +44,25 @@ export default function LmsShell({
   role?: UserRole
 }) {
   const pathname = usePathname()
+  const router = useRouter()
+  const dispatch = useAppDispatch()
   const [mobileOpen, setMobileOpen] = useState(false)
-  const user = useAuthStore((state) => state.user)
-  const logout = useAuthStore((state) => state.logout)
+  const [isSigningOut, setIsSigningOut] = useState(false)
+  const user = useAppSelector((state) => state.auth.user)
   const compactWorkspace = /^\/student\/assignments\/[^/]+\/attempt$/.test(pathname)
   const navItems = navItemsByRole[role]
-  const dashboardHref =
-    role === "student" ? "/student/dashboard" : "/lecturer/dashboard"
   const profileHref = role === "student" ? "/student/profile" : "/lecturer/dashboard"
+  const handleLogout = async () => {
+    setIsSigningOut(true)
+
+    try {
+      await logoutCurrentSession()
+    } finally {
+      dispatch(authActions.logout())
+      router.replace("/login")
+      setIsSigningOut(false)
+    }
+  }
 
   const upcoming = useMemo(
     () =>
@@ -95,14 +109,21 @@ export default function LmsShell({
                   <Menu className="size-6 text-[#030391]" />
                 )}
               </button>
-              <Link href={dashboardHref} className="flex items-center gap-3">
-                <div className="size-11 rounded-xl bg-gradient-to-br from-[#030391] to-[#1488D8]" />
-                <div className="hidden sm:block">
-                  <h1 className="text-sm font-bold tracking-tight text-[#1488D8]">
-                    ĐẠI HỌC BÁCH KHOA
+              <Link href="/" className="group flex items-center gap-3">
+                <Image
+                  src="/hcmut.png"
+                  alt="BK Logo"
+                  width={96}
+                  height={96}
+                  className="h-12 w-auto object-contain transition-transform group-hover:scale-105"
+                  priority
+                />
+                <div className="hidden flex-col items-center justify-center sm:flex">
+                  <h1 className="text-center text-sm font-bold tracking-tight text-[#1488D8]">
+                    ĐẠI HỌC QUỐC GIA THÀNH PHỐ HỒ CHÍ MINH
                   </h1>
-                  <p className="text-lg font-bold tracking-tight text-[#030391]">
-                    BK LEARNING HUB
+                  <p className="text-center text-xl font-bold tracking-tight text-[#030391]">
+                    TRƯỜNG ĐẠI HỌC BÁCH KHOA
                   </p>
                 </div>
               </Link>
@@ -160,9 +181,10 @@ export default function LmsShell({
                 variant="ghost"
                 size="sm"
                 className="hidden rounded-xl text-[#030391] hover:bg-[#E3F2FD] lg:inline-flex"
-                onClick={logout}
+                disabled={isSigningOut}
+                onClick={handleLogout}
               >
-                Sign out
+                {isSigningOut ? "Signing out..." : "Sign out"}
               </Button>
             </div>
           </div>
@@ -325,7 +347,7 @@ export default function LmsShell({
                   <div className="space-y-4 text-sm">
                     <div>
                       <div className="mb-2 flex justify-between">
-                        <span>Managed courses</span>
+                        <span>Managed classes</span>
                         <span className="font-bold">{lecturerManagedCourses.length}</span>
                       </div>
                       <div className="h-2 overflow-hidden rounded-full bg-white/20">
@@ -348,11 +370,11 @@ export default function LmsShell({
                   <div className="mb-4 flex items-center justify-between">
                     <h3 className="flex items-center gap-2 font-bold text-[#030391]">
                       <BookOpen className="size-5" />
-                      Course workload
+                      Class workload
                     </h3>
                     <Link href="/lecturer/courses">
                       <Badge className="cursor-pointer bg-[#1488D8] text-xs text-white">
-                        Open courses
+                        Open classes
                       </Badge>
                     </Link>
                   </div>
