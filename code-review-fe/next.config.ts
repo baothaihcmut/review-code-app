@@ -1,8 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  reactCompiler: true,
+  output: 'standalone',
+
+  // nên tắt để build nhẹ hơn
+  reactCompiler: false,
 };
 
 export default nextConfig;

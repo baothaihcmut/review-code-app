@@ -28,7 +28,7 @@ export function getBackendBaseUrl() {
     return trimTrailingSlash(configuredBaseUrl)
   }
 
-  return "http://localhost:8080/api"
+  return "https://bbc-lms.online/api"
 }
 
 export function buildGoogleLoginUrl(role: UserRole) {

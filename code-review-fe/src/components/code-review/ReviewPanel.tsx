@@ -18,7 +18,7 @@ export default function ReviewPanel() {
   const handleReview = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("http://localhost:8080/api/review", {
+      const res = await fetch("https://bbc-lms.online/api/review", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
