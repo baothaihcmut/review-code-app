@@ -13,7 +13,7 @@ type AssignmentDraft = {
   title: string
   description: string
   difficulty: "Easy" | "Medium" | "Hard"
-  starterCode: string
+  functionSkeleton: string
   score: string
   timeLimit: string
   deadline: string
@@ -25,6 +25,7 @@ const defaultTests: EditableTestCase[] = [
     id: "draft-1",
     input: "nums = [2,7,11,15], target = 9",
     expectedOutput: "[0,1]",
+    explanation: "Hai phần tử đầu tiên có tổng bằng target.",
     hidden: false,
   },
 ]
@@ -40,7 +41,7 @@ export default function AssignmentBuilder({
     title: "",
     description: "",
     difficulty: "Easy",
-    starterCode: "",
+    functionSkeleton: "",
     score: "100",
     timeLimit: "2s",
     deadline: "",
@@ -118,9 +119,9 @@ export default function AssignmentBuilder({
         <Textarea
           placeholder="Starter code"
           rows={8}
-          value={draft.starterCode}
+          value={draft.functionSkeleton}
           onChange={(event) =>
-            setDraft((state) => ({ ...state, starterCode: event.target.value }))
+            setDraft((state) => ({ ...state, functionSkeleton: event.target.value }))
           }
         />
 

@@ -2,10 +2,12 @@ package com.example.demo.assignment.dto;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import com.example.demo.assignment.entity.AssigmentDifficulty;
-import com.example.demo.problem.dto.CreateProblemRequest.TestcaseRequest;
+import com.example.demo.problem.dto.TestcaseDto;
+// import com.example.demo.problem.dto.CreateProblemRequest.TestcaseRequest;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -24,9 +26,19 @@ public class CreateAssignmentRequest {
 
     // private String description;
 
+    private Instant startTime;
+
     private Instant deadline;
 
+    private Long timeLimit;
+
+    private float maxScore;
+
+    private int maxSubmission;
+
     private AssigmentDifficulty difficulty;
+
+    private List<String> tags;
 
     private ProblemRequest problem;
     
@@ -40,7 +52,11 @@ public class CreateAssignmentRequest {
 
         private String problemConstraint;
 
-        private List<TestcaseRequest> testcases;
+        private Map<String, String> starterCodes;
+        private String leetCodeCodeSnippet;
+        private String leetCodeLanguage;
+
+        private List<TestcaseDto> testcases;
     }
 
 }

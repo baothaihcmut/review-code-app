@@ -25,7 +25,7 @@ public class TestcaseServiceImpl implements TestcaseService {
                 .problemId(request.getProblemId())
                 .input(request.getInput())
                 .expectedOutput(request.getExpectedOutput())
-                .isSample(request.isSample())
+                .isHidden(request.isHidden())
                 .build();
 
         testcaseRepository.save(testcase);
@@ -42,6 +42,15 @@ public class TestcaseServiceImpl implements TestcaseService {
                 .toList();
     }
 
+    @Override
+    public List<TestcaseResponse> getTestcasesByAssignment(UUID assignmentId) {
+
+        return testcaseRepository.findByAssignmentId(assignmentId)
+                .stream()
+                .map(this::map)
+                .toList();
+    }
+
     private TestcaseResponse map(Testcase testcase) {
 
         return TestcaseResponse.builder()
@@ -49,7 +58,7 @@ public class TestcaseServiceImpl implements TestcaseService {
                 .problemId(testcase.getProblemId())
                 .input(testcase.getInput())
                 .expectedOutput(testcase.getExpectedOutput())
-                .isSample(testcase.isSample())
+                .isHidden(testcase.isHidden())
                 .explanation(testcase.getExplanation())
                 .build();
     }

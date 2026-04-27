@@ -17,11 +17,15 @@ public enum ErrorCode {
 
     SUBMISSION_NOT_FOUND(HttpStatus.NOT_FOUND, "Submission not found"),
 
+    STUDENT_ALREADY_ENROLLED(HttpStatus.CONFLICT, "Student is already enrolled in this class"),
+
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "Unauthorized"),
 
     FORBIDDEN(HttpStatus.FORBIDDEN, "Forbidden"),
 
     VALIDATION_ERROR(HttpStatus.BAD_REQUEST, "Validation error"),
+
+    RECOMMENDATION_SERVICE_ERROR(HttpStatus.BAD_GATEWAY, "Recommendation service error"),
 
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error");
 

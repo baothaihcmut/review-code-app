@@ -1,0 +1,12 @@
+{
+  "include": [
+    "src",
+    "libs/clients/codereview",
+    "libs/clients/codereviewai"
+  ],
+  "extraPaths": [
+    "src",
+    "libs/clients/codereview",
+    "libs/clients/codereviewai"
+  ]
+}

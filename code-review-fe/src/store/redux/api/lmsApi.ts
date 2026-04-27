@@ -3,7 +3,6 @@ import type {
   CourseMaterial,
   CourseTopic,
   ProblemBankEntry,
-  SubmissionRecord,
 } from "@/data/lms/extendedMockData"
 import { baseApi } from "@/store/redux/api/baseApi"
 
@@ -27,6 +26,11 @@ export type TopicAssignmentResponse = {
   title: string
   deadline: string
   difficulty: "EASY" | "MEDIUM" | "HARD" | string
+  startTime?: string | null
+  timeLimit?: number | null
+  maxScore?: number | null
+  maxSubmission?: number | null
+  tags?: string[] | null
   status: string
 }
 export type TopicDocumentResponse = {
@@ -63,14 +67,24 @@ type CreateDocumentRequest = {
 type CreateAssignmentRequest = {
   topicId: string
   title: string
+  startTime: string
   deadline: string
-  difficulty: "Easy" | "Medium" | "Hard"
-  description: string
-  testcases: Array<{
-    input: string
-    expectedOutput: string
-    hidden: boolean
-  }>
+  timeLimit: number
+  maxScore: number
+  maxSubmission: number
+  difficulty: "EASY" | "MEDIUM" | "HARD"
+  tags: string[]
+  problem: {
+    description: string
+    problemConstraint: string
+    starterCodes: Record<string, string>
+    testcases: Array<{
+      input: string
+      expectedOutput: string
+      explanation: string
+      hidden: boolean
+    }>
+  }
 }
 type UpdateTopicRequest = {
   id: string
@@ -122,9 +136,142 @@ export type LecturerClassDetail = {
   schedule: string | null
   imageUrl?: string | null
 }
+export type ClassStudent = {
+  id: string
+  email: string
+  name: string
+  userCode: string
+  picture: string | null
+  role: string
+}
 type AddStudentToClassRequest = {
   classId: string
-  studentId: string
+  userCode: string
+}
+type RemoveStudentFromClassRequest = {
+  classId: string
+  userCode: string
+}
+export type AssignmentContext = TopicAssignmentResponse & {
+  topicId: string
+  topicTitle: string
+  classId: string
+  className: string
+  instructorName: string
+  imageUrl?: string | null
+}
+export type AssignmentSubmissionResponse = {
+  submissionId: string
+  status: string
+  startedAt: string
+  submittedAt: string
+  score: string
+  studentName: string
+}
+export type SubmissionDetailTestcaseResponse = {
+  testcaseId: string
+  index: number
+  input: string
+  expectedOutput: string
+  output: string
+  error: string
+  status: string
+  runtime: number
+}
+export type SubmissionDetailResponse = {
+  code: string
+  language: string
+  testcaseResults: SubmissionDetailTestcaseResponse[]
+}
+export type AssignmentProblemResponse = {
+  id: string
+  description: string
+  problemConstraint: string
+  functionSkeletons: Record<string, string>
+}
+export type AssignmentTestcaseResponse = {
+  id: string
+  problemId: string
+  input: string
+  expectedOutput: string
+  explanation: string
+  hidden: boolean
+}
+export type JudgeExecutionRequest = {
+  problemId: string
+  language: string
+  code: string
+}
+export type JudgeExecutionTestcaseResponse = {
+  testcaseId: string | null
+  index: number
+  input: string
+  expectedOutput: string
+  output: string
+  error: string
+  status: string
+  runtime: number
+}
+export type JudgeExecutionResponse = {
+  status: string
+  testcases: JudgeExecutionTestcaseResponse[]
+  passedTestcases: number
+  totalTestcases: number
+  runtime: number
+}
+export type CodeReviewRequest = {
+  problemId: string
+  code: string
+  language: string
+}
+export type CodeReviewLineRangeResponse = {
+  start: number
+  end: number
+}
+export type CodeReviewColumnRangeResponse = {
+  start: number
+  end: number
+}
+export type CodeReviewLinkResponse = {
+  current_issue: string
+  current_code_snippet: string
+  previous_submission_indexes: number[]
+  previous_code_snippet: string
+  what_improved: string
+  what_still_needs_work: string
+  relation_summary: string
+}
+export type CodeReviewItemResponse = {
+  line: CodeReviewLineRangeResponse
+  column: CodeReviewColumnRangeResponse
+  type: string
+  issue: string
+  code_snippet: string
+  fix_suggestion: string
+  review_link?: CodeReviewLinkResponse | null
+}
+export type CodeReviewScorecardMetricResponse = {
+  score: number
+  label: string
+  explanation: string
+}
+export type CodeReviewResponse = {
+  summary: string
+  detail: string
+  review_id: string
+  review_items: CodeReviewItemResponse[]
+  scorecard: Record<string, CodeReviewScorecardMetricResponse>
+}
+export type CreateSubmissionRequest = {
+  problemId: string
+  language: string
+  code: string
+  startedAt: string
+}
+type GetAssignmentSubmissionsRequest = {
+  assignmentId: string
+  scope: "me" | "all" | "user"
+  userId?: string
 }
 
 export const lmsApi = baseApi.injectEndpoints({
@@ -141,6 +288,17 @@ export const lmsApi = baseApi.injectEndpoints({
       query: (classId) => `/classes/${classId}`,
       transformResponse: (response: ApiResponse<LecturerClassDetail>) => response.data,
       providesTags: (_result, _error, classId) => [{ type: "Class" as const, id: classId }],
+    }),
+    getClassStudents: builder.query<ClassStudent[], string>({
+      query: (classId) => `/classes/${classId}/students`,
+      transformResponse: (response: ApiResponse<ClassStudent[]>) => response.data ?? [],
+      providesTags: (result, _error, classId) => [
+        { type: "Student" as const, id: `CLASS-${classId}` },
+        ...(result?.map((student) => ({
+          type: "Student" as const,
+          id: `${classId}-${student.userCode}`,
+        })) ?? []),
+      ],
     }),
     getClassTopics: builder.query<TopicDetailResponse[], string>({
       async queryFn(classId, _api, _extraOptions, fetchWithBQ) {
@@ -214,6 +372,133 @@ export const lmsApi = baseApi.injectEndpoints({
         ...(result?.map((topic) => ({ type: "Topic" as const, id: topic.id })) ?? []),
       ],
     }),
+    getAssignmentContext: builder.query<AssignmentContext, string>({
+      async queryFn(assignmentId, _api, _extraOptions, fetchWithBQ) {
+        const classesResult = await fetchWithBQ("/classes/me")
+
+        if (classesResult.error) {
+          return { error: classesResult.error }
+        }
+
+        const classesPayload = classesResult.data as ApiResponse<LecturerClassSummary[]>
+        const classes = classesPayload.data ?? []
+
+        for (const classroom of classes) {
+          const topicsResult = await fetchWithBQ(`/topics/class/${classroom.id}`)
+
+          if (topicsResult.error) {
+            return { error: topicsResult.error }
+          }
+
+          const topicsPayload = topicsResult.data as ApiResponse<TopicOverviewResponse>
+          const topicIds = topicsPayload.data.ids ?? []
+
+          for (const topicId of topicIds) {
+            const [topicResult, assignmentsResult] = await Promise.all([
+              fetchWithBQ(`/topics/${topicId}`),
+              fetchWithBQ(`/assignments/topic/${topicId}`),
+            ])
+
+            if (topicResult.error) {
+              return { error: topicResult.error }
+            }
+
+            if (assignmentsResult.error) {
+              return { error: assignmentsResult.error }
+            }
+
+            const topicPayload = topicResult.data as ApiResponse<TopicBaseDetailResponse>
+            const assignmentsPayload =
+              assignmentsResult.data as ApiResponse<TopicAssignmentResponse[]>
+            const assignment = (assignmentsPayload.data ?? []).find((item) => item.id === assignmentId)
+
+            if (assignment) {
+              return {
+                data: {
+                  ...assignment,
+                  topicId,
+                  topicTitle: topicPayload.data.title,
+                  classId: classroom.id,
+                  className: classroom.name,
+                  instructorName: classroom.instructorName,
+                  imageUrl: classroom.imageUrl,
+                },
+              }
+            }
+          }
+        }
+
+        return {
+          error: {
+            status: 404,
+            data: "Assignment not found",
+          },
+        }
+      },
+      providesTags: (_result, _error, assignmentId) => [
+        { type: "Assignment" as const, id: assignmentId },
+      ],
+    }),
+    getAssignmentSubmissions: builder.query<
+      AssignmentSubmissionResponse[],
+      GetAssignmentSubmissionsRequest
+    >({
+      query: ({ assignmentId, scope, userId }) => {
+        if (scope === "me") {
+          return `/submissions/assignment/${assignmentId}/me`
+        }
+
+        if (scope === "user" && userId) {
+          return `/submissions/assignment/${assignmentId}/${encodeURIComponent(userId)}`
+        }
+
+        return `/submissions/assignment/${assignmentId}`
+      },
+      transformResponse: (response: ApiResponse<AssignmentSubmissionResponse[]>) =>
+        response.data ?? [],
+      providesTags: (_result, _error, { assignmentId }) => [
+        { type: "Submission" as const, id: assignmentId },
+      ],
+    }),
+    getSubmissionById: builder.query<SubmissionDetailResponse, string>({
+      query: (submissionId) => `/submissions/${submissionId}`,
+      transformResponse: (response: ApiResponse<SubmissionDetailResponse>) => response.data,
+      providesTags: (_result, _error, submissionId) => [
+        { type: "Submission" as const, id: submissionId },
+      ],
+    }),
+    getAssignmentProblem: builder.query<AssignmentProblemResponse, string>({
+      query: (assignmentId) => `/problems/assignment/${assignmentId}`,
+      transformResponse: (response: ApiResponse<AssignmentProblemResponse>) => response.data,
+      providesTags: (_result, _error, assignmentId) => [
+        { type: "Assignment" as const, id: `PROBLEM-${assignmentId}` },
+      ],
+    }),
+    getAssignmentTestcases: builder.query<AssignmentTestcaseResponse[], string>({
+      query: (assignmentId) => `/testcases/assignment/${assignmentId}`,
+      transformResponse: (response: ApiResponse<AssignmentTestcaseResponse[]>) => response.data,
+      providesTags: (_result, _error, assignmentId) => [
+        { type: "Assignment" as const, id: `TESTCASES-${assignmentId}` },
+      ],
+    }),
+    judgeExecution: builder.mutation<JudgeExecutionResponse, JudgeExecutionRequest>({
+      query: (body) => ({
+        url: "/execution/judge",
+        method: "POST",
+        body,
+      }),
+      transformResponse: (response: ApiResponse<JudgeExecutionResponse>) => response.data,
+    }),
+    reviewCode: builder.mutation<CodeReviewResponse, CodeReviewRequest>({
+      // Browser clients cannot safely send a request body with GET. This uses POST to the same
+      // endpoint path and expects the backend/spec to align accordingly.
+      query: (body) => ({
+        url: "/reviews/code",
+        method: "POST",
+        body,
+      }),
+      transformResponse: (response: ApiResponse<CodeReviewResponse>) => response.data,
+    }),
     createClass: builder.mutation<CreatedClass, CreateClassRequest>({
       query: ({ name, description, image, schedule }) => {
         const formData = new FormData()
@@ -234,16 +519,28 @@ export const lmsApi = baseApi.injectEndpoints({
       transformResponse: (response: ApiResponse<CreatedClass>) => response.data,
       invalidatesTags: [{ type: "Class" as const, id: "LIST" }],
     }),
-    addStudentToClass: builder.mutation<null, AddStudentToClassRequest>({
-      query: ({ classId, studentId }) => ({
-        url: `/classes/${classId}/students`,
+    addStudentToClass: builder.mutation<void, AddStudentToClassRequest>({
+      query: ({ classId, userCode }) => ({
+        url: `/classes/${classId}/students/${encodeURIComponent(userCode)}`,
         method: "POST",
-        body: { studentId },
       }),
-      transformResponse: (response: ApiResponse<null>) => response.data,
+      transformResponse: () => undefined,
       invalidatesTags: (_result, _error, { classId }) => [
         { type: "Class" as const, id: "LIST" },
         { type: "Class" as const, id: classId },
+        { type: "Student" as const, id: `CLASS-${classId}` },
+      ],
+    }),
+    removeStudentFromClass: builder.mutation<void, RemoveStudentFromClassRequest>({
+      query: ({ classId, userCode }) => ({
+        url: `/classes/${classId}/students/${encodeURIComponent(userCode)}`,
+        method: "DELETE",
+      }),
+      transformResponse: () => undefined,
+      invalidatesTags: (_result, _error, { classId }) => [
+        { type: "Class" as const, id: "LIST" },
+        { type: "Class" as const, id: classId },
+        { type: "Student" as const, id: `CLASS-${classId}` },
       ],
     }),
     getCourses: builder.query<Course[], void>({
@@ -271,11 +568,6 @@ export const lmsApi = baseApi.injectEndpoints({
     getProblemBank: builder.query<ProblemBankEntry[], void>({
       query: () => "/problem-bank",
       providesTags: ["ProblemBank"],
-    }),
-    getSubmissions: builder.query<SubmissionRecord[], string | void>({
-      query: (assignmentId) =>
-        assignmentId ? `/assignments/${assignmentId}/submissions` : "/submissions",
-      providesTags: ["Submission"],
     }),
     createTopic: builder.mutation<CreatedTopic, CreateTopicRequest>({
       query: (body) => ({
@@ -311,23 +603,31 @@ export const lmsApi = baseApi.injectEndpoints({
       ],
     }),
     createAssignment: builder.mutation<TopicAssignmentResponse, CreateAssignmentRequest>({
-      query: ({ topicId, title, deadline, difficulty, description, testcases }) => ({
+      query: ({
+        topicId,
+        title,
+        startTime,
+        deadline,
+        timeLimit,
+        maxScore,
+        maxSubmission,
+        difficulty,
+        tags,
+        problem,
+      }) => ({
         url: "/assignments",
         method: "POST",
         body: {
           topicId,
           title,
+          startTime,
           deadline,
-          difficulty: difficulty.toUpperCase(),
-          problem: {
-            description,
-            testcases: testcases.map((testcase) => ({
-              input: testcase.input,
-              expectedOutput: testcase.expectedOutput,
-              explanation: "",
-              sample: !testcase.hidden,
-            })),
-          },
+          timeLimit,
+          maxScore,
+          maxSubmission,
+          difficulty,
+          tags,
+          problem,
         },
       }),
       transformResponse: (response: ApiResponse<TopicAssignmentResponse>) => response.data,
@@ -383,12 +683,13 @@ export const lmsApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ["ProblemBank", "Assignment"],
     }),
-    createSubmission: builder.mutation<SubmissionRecord, SubmissionRecord>({
+    createSubmission: builder.mutation<AssignmentSubmissionResponse, CreateSubmissionRequest>({
       query: (body) => ({
         url: "/submissions",
         method: "POST",
         body,
       }),
+      transformResponse: (response: ApiResponse<AssignmentSubmissionResponse>) => response.data,
       invalidatesTags: ["Submission", "Assignment", "Student"],
     }),
   }),
@@ -397,15 +698,23 @@ export const lmsApi = baseApi.injectEndpoints({
 export const {
   useGetMyClassesQuery,
   useGetClassByIdQuery,
+  useGetClassStudentsQuery,
   useGetClassTopicsQuery,
+  useGetAssignmentContextQuery,
+  useGetAssignmentSubmissionsQuery,
+  useGetSubmissionByIdQuery,
+  useGetAssignmentProblemQuery,
+  useGetAssignmentTestcasesQuery,
+  useJudgeExecutionMutation,
+  useReviewCodeMutation,
   useCreateClassMutation,
   useAddStudentToClassMutation,
+  useRemoveStudentFromClassMutation,
   useGetCoursesQuery,
   useGetCourseTopicsQuery,
   useGetCourseMaterialsQuery,
   useGetAssignmentsQuery,
   useGetProblemBankQuery,
-  useGetSubmissionsQuery,
   useCreateTopicMutation,
   useCreateDocumentMutation,
   useCreateAssignmentMutation,

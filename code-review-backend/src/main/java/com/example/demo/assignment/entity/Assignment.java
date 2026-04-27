@@ -1,6 +1,7 @@
 package com.example.demo.assignment.entity;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import jakarta.persistence.Entity;
@@ -34,7 +35,17 @@ public class Assignment {
 
     private String description;
 
+    private Instant startTime;
+
     private Instant deadline;
+
+    private Long timeLimit;
+
+    private float maxScore;
+
+    private int maxSubmission;
+
+    private List<String> tags;
 
     private Instant createdAt;
 

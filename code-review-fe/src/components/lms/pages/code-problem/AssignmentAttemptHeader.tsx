@@ -2,7 +2,7 @@
 
 import { memo, useEffect, useState } from "react"
 import Link from "next/link"
-import { ChevronLeft, TimerReset } from "lucide-react"
+import { ChevronLeft, Lock, TimerReset } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -18,22 +18,24 @@ function formatRemaining(startedAtMs: number, timeLimitMinutes: number) {
 }
 
 function AssignmentAttemptHeaderComponent({
-  assignmentId,
   assignment,
   problem,
+  backHref,
   startedAtMs,
   timeLimitMinutes,
   language,
   languages,
+  readOnly = false,
   onLanguageChange,
 }: {
-  assignmentId: string
   assignment: Assignment
   problem: CodingProblem
+  backHref: string
   startedAtMs: number
   timeLimitMinutes: number
   language: string
   languages: readonly string[]
+  readOnly?: boolean
   onLanguageChange: (value: string) => void
 }) {
   const [remainingMinutesLabel, setRemainingMinutesLabel] = useState(() =>
@@ -41,37 +43,55 @@ function AssignmentAttemptHeaderComponent({
   )
 
   useEffect(() => {
+    if (readOnly) {
+      return
+    }
+
     const interval = window.setInterval(() => {
       setRemainingMinutesLabel(formatRemaining(startedAtMs, timeLimitMinutes))
     }, 1000)
 
     return () => window.clearInterval(interval)
-  }, [startedAtMs, timeLimitMinutes])
+  }, [readOnly, startedAtMs, timeLimitMinutes])
 
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Button asChild variant="ghost" size="sm">
-          <Link href={`/student/assignments/${assignmentId}`}>
+          <Link href={backHref}>
             <ChevronLeft className="size-4" /> Quay lại
           </Link>
         </Button>
         <div className="flex items-center gap-2">
-          <div className="inline-flex items-center gap-2 rounded-2xl border border-[#1488D8]/20 bg-[#f8fbff] px-4 py-2 text-sm font-medium text-[#030391]">
-            <TimerReset className="size-4 text-[#1488D8]" />
-            Còn lại {remainingMinutesLabel}
-          </div>
-          <select
-            value={language}
-            onChange={(event) => onLanguageChange(event.target.value)}
-            className="h-9 rounded-md border bg-background px-3 text-sm"
-          >
-            {languages.map((item) => (
-              <option key={item} value={item}>
-                {item}
-              </option>
-            ))}
-          </select>
+          {readOnly ? (
+            <>
+              <div className="inline-flex items-center gap-2 rounded-2xl border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700">
+                <Lock className="size-4" />
+                Chế độ xem lại
+              </div>
+              <div className="inline-flex items-center gap-2 rounded-2xl border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700">
+                {language}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="inline-flex items-center gap-2 rounded-2xl border border-[#1488D8]/20 bg-[#f8fbff] px-4 py-2 text-sm font-medium text-[#030391]">
+                <TimerReset className="size-4 text-[#1488D8]" />
+                Còn lại {remainingMinutesLabel}
+              </div>
+              <select
+                value={language}
+                onChange={(event) => onLanguageChange(event.target.value)}
+                className="h-9 rounded-md border bg-background px-3 text-sm"
+              >
+                {languages.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
         </div>
       </div>
 

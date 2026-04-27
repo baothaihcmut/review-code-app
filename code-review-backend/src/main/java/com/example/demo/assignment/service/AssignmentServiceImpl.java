@@ -2,6 +2,7 @@ package com.example.demo.assignment.service;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -38,6 +39,11 @@ public class AssignmentServiceImpl implements AssignmentService {
                 .title(request.getTitle())
                 // .description(request.getDescription())
                 .deadline(request.getDeadline())
+                .startTime(request.getStartTime())
+                .timeLimit(request.getTimeLimit())
+                .maxScore(request.getMaxScore())
+                .maxSubmission(request.getMaxSubmission())
+                .tags(request.getTags())
                 .createdAt(Instant.now())
                 .difficulty(request.getDifficulty())
                 .status(AssignmentStatus.PENDING)
@@ -47,12 +53,17 @@ public class AssignmentServiceImpl implements AssignmentService {
 
         CreateAssignmentRequest.ProblemRequest problemReq = request.getProblem();
 
-        ProblemResponse problem = problemService.createProblem(
+        ProblemResponse problem = problemService.createManualProblem(
                 CreateProblemRequest.builder()
                         .description(problemReq.getDescription())
                         .assignmentId(assignment.getId())
+                        .starterCodes(problemReq.getStarterCodes())
+                        // .leetCodeCodeSnippet(problemReq.getLeetCodeCodeSnippet())
+                        // .leetCodeLanguage(problemReq.getLeetCodeLanguage())
                         .problemConstraint(problemReq.getProblemConstraint())
                         .testcases(problemReq.getTestcases())
+                        .title(assignment.getTitle())
+                        .difficulty(assignment.getDifficulty().toString())
                         .build()
         );
 
@@ -94,6 +105,11 @@ public class AssignmentServiceImpl implements AssignmentService {
                 .title(assignment.getTitle())
                 .deadline(assignment.getDeadline())
                 .difficulty(assignment.getDifficulty())
+                .startTime(assignment.getStartTime())
+                .timeLimit(assignment.getTimeLimit())
+                .maxScore(assignment.getMaxScore())
+                .maxSubmission(assignment.getMaxSubmission())
+                .tags(assignment.getTags())
                 .status(assignment.getStatus())
                 .build();
     }

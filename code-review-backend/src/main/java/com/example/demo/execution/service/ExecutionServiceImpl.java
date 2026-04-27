@@ -16,8 +16,11 @@ import com.example.demo.execution.dto.RunTestcaseRequest;
 import com.example.demo.execution.dto.TestcaseResult;
 import com.example.demo.execution.model.JudgeStatus;
 import com.example.demo.execution.model.JudgeUtil;
+import com.example.demo.problem.entity.Problem;
 import com.example.demo.problem.entity.Testcase;
+import com.example.demo.problem.repository.ProblemRepository;
 import com.example.demo.problem.repository.TestcaseRepository;
+import com.example.demo.problem.utils.CodeExtractor;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,9 +32,19 @@ public class ExecutionServiceImpl implements ExecutionService {
 
     private final JobeClient jobeClient;
     private final TestcaseRepository testcaseRepository;
+    private final ProblemRepository problemRepository;
 
     private final ExecutorService executor =
             Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+
+    private static final String CPP_UNSAFE_INT_READ = "int n; cin >> n;";
+    private static final String CPP_SAFE_INT_READ = """
+            int n = 0;
+                if (!(cin >> n)) {
+                    cerr << "Invalid input";
+                    return 0;
+                }
+            """;
 
     @Override
     public RunCodeResponse runByTestcase(RunTestcaseRequest request) {
@@ -39,29 +52,19 @@ public class ExecutionServiceImpl implements ExecutionService {
         List<Testcase> testcases =
                 testcaseRepository.findByProblemId(request.getProblemId());
 
-        // ===== COMPILE ONCE =====
-        ExecutionResult compileResult =
-                jobeClient.compile(request.getLanguage(), request.getCode());
+        // ===== LOAD PROBLEM AND COMBINE STARTER CODE WITH STUDENT CODE =====
+        Problem problem = problemRepository.findById(request.getProblemId())
+                .orElseThrow(() -> new RuntimeException("Problem not found"));
 
-        JudgeStatus compileStatus = mapOutcome(compileResult);
-
-        if (compileStatus == JudgeStatus.COMPILE_ERROR) {
-
-            TestcaseResult compileError =
-                    TestcaseResult.builder()
-                            .index(1)
-                            .error(compileResult.getStderr())
-                            .status(JudgeStatus.COMPILE_ERROR)
-                            .runtime(compileResult.getRuntime())
-                            .build();
-
-            return RunCodeResponse.builder()
-                    .status(JudgeStatus.COMPILE_ERROR)
-                    .testcases(List.of(compileError))
-                    .passedTestcases(0)
-                    .totalTestcases(testcases.size())
-                    .build();
-        }
+        String template = getTemplate(problem, request.getLanguage());
+        String combinedCode = CodeExtractor.combineWithStudentCode(template, request.getCode());
+        String hardenedCode = hardenGeneratedCode(request.getLanguage(), combinedCode);
+        log.info(
+                "Prepared combined code | problemId={} | language={} | source={}",
+                request.getProblemId(),
+                request.getLanguage(),
+                quoteForLog(hardenedCode)
+        );
 
         // ===== RUN TESTCASES PARALLEL =====
         List<CompletableFuture<TestcaseResult>> futures = new ArrayList<>();
@@ -75,7 +78,7 @@ public class ExecutionServiceImpl implements ExecutionService {
 
             futures.add(
                     CompletableFuture.supplyAsync(
-                            () -> runSingleTestcase(testcaseIndex, request, tc),
+                            () -> runSingleTestcase(testcaseIndex, request, hardenedCode, tc),
                             executor
                     )
             );
@@ -113,13 +116,14 @@ public class ExecutionServiceImpl implements ExecutionService {
     private TestcaseResult runSingleTestcase(
             int index,
             RunTestcaseRequest request,
+            String combinedCode,
             Testcase tc
     ) {
 
         ExecutionResult result =
                 jobeClient.runCode(
                         request.getLanguage(),
-                        request.getCode(),
+                        combinedCode,
                         tc.getInput()
                 );
 
@@ -127,7 +131,16 @@ public class ExecutionServiceImpl implements ExecutionService {
 
         String output = result.getStdout();
         String error = result.getStderr();
-        log.info("Testcase #{}: status={}, output=[{}], error=[{}]", index, status, output, error);
+        log.info(
+                "Raw testcase result | testcaseIndex={} | testcaseId={} | input={} | expected={} | output={} | error={} | mappedStatus={}",
+                index,
+                tc.getId(),
+                quoteForLog(tc.getInput()),
+                quoteForLog(tc.getExpectedOutput()),
+                quoteForLog(output),
+                quoteForLog(error),
+                status
+        );
 
         if (status == JudgeStatus.ACCEPTED) {
 
@@ -140,9 +153,17 @@ public class ExecutionServiceImpl implements ExecutionService {
             status = correct
                     ? JudgeStatus.ACCEPTED
                     : JudgeStatus.WRONG_ANSWER;
+
+            log.info(
+                    "Compared testcase result | testcaseIndex={} | testcaseId={} | finalStatus={}",
+                    index,
+                    tc.getId(),
+                    status
+            );
         }
 
         return TestcaseResult.builder()
+                .testcaseId(tc.getId())
                 .index(index)
                 .input(tc.getInput())
                 .expectedOutput(tc.getExpectedOutput())
@@ -171,6 +192,18 @@ public class ExecutionServiceImpl implements ExecutionService {
         };
     }
 
+    /**
+     * Get template from problem
+     */
+    private String getTemplate(Problem problem, String language) {
+        if (problem.getStarterCodes() != null && 
+            problem.getStarterCodes().containsKey(language)) {
+            return problem.getStarterCodes().get(language);
+        }
+
+        throw new RuntimeException("No starter code template found for language: " + language);
+    }
+
     @Override
     public RunCodeResponse runByCustomInput(RunCodeRequest request) {
         ExecutionResult result =
@@ -197,5 +230,37 @@ public class ExecutionServiceImpl implements ExecutionService {
                 .passedTestcases(status == JudgeStatus.ACCEPTED ? 1 : 0)
                 .totalTestcases(1)
                 .build();
+    }
+
+    private String quoteForLog(String value) {
+        if (value == null) {
+            return "<null>";
+        }
+
+        String escaped = value
+                .replace("\\", "\\\\")
+                .replace("\r", "\\r")
+                .replace("\n", "\\n")
+                .replace("\t", "\\t");
+
+        if (escaped.length() > 1200) {
+            return "\"" + escaped.substring(0, 1200) + "...(truncated)\"";
+        }
+
+        return "\"" + escaped + "\"";
+    }
+
+    private String hardenGeneratedCode(String language, String combinedCode) {
+        if (!"cpp".equalsIgnoreCase(language) || combinedCode == null || combinedCode.isBlank()) {
+            return combinedCode;
+        }
+
+        if (combinedCode.contains(CPP_UNSAFE_INT_READ)) {
+            String hardenedCode = combinedCode.replace(CPP_UNSAFE_INT_READ, CPP_SAFE_INT_READ);
+            log.info("Applied C++ input hardening for common 'int n; cin >> n;' main pattern");
+            return hardenedCode;
+        }
+
+        return combinedCode;
     }
 }
