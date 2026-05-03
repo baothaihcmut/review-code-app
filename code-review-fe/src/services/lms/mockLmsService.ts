@@ -10,6 +10,7 @@ import {
   type SubmissionRecord,
 } from "@/data/lms/extendedMockData"
 import { assignments, codingProblems, courses, type Assignment, type CodingProblem, type Course } from "@/data/lms/mockData"
+import { normalizeProblemDifficulty, type ProblemDifficulty } from "@/lib/problem-difficulty"
 import { useLmsStore } from "@/store/lmsStore"
 
 const strategyKeywordsByProblemId: Record<string, string[]> = {
@@ -227,7 +228,15 @@ export async function getAssignmentReview(assignmentId: string, score: number, c
 export async function getRecommendedProblems(
   assignmentId: string,
   score: number
-): Promise<(ProblemBankEntry & { solved: boolean; reason: string })[]> {
+): Promise<
+  Array<
+    Omit<ProblemBankEntry, "difficulty"> & {
+      difficulty: ProblemDifficulty
+      solved: boolean
+      reason: string
+    }
+  >
+> {
   await wait(180)
   const state = useLmsStore.getState()
   const problem = codingProblems.find((item) => item.assignmentId === assignmentId)
@@ -248,13 +257,16 @@ export async function getRecommendedProblems(
         entry.topics.some((topic) => problem.topics.includes(topic))
     )
     .sort((left, right) => {
-      const leftMatchesDifficulty = left.difficulty === preferredDifficulty ? 1 : 0
-      const rightMatchesDifficulty = right.difficulty === preferredDifficulty ? 1 : 0
+      const leftMatchesDifficulty =
+        normalizeProblemDifficulty(left.difficulty) === preferredDifficulty ? 1 : 0
+      const rightMatchesDifficulty =
+        normalizeProblemDifficulty(right.difficulty) === preferredDifficulty ? 1 : 0
       return rightMatchesDifficulty - leftMatchesDifficulty
     })
     .slice(0, 4)
     .map((entry) => ({
       ...entry,
+      difficulty: normalizeProblemDifficulty(entry.difficulty),
       solved: entry.solvedByStudentIds.includes(studentProfile.id),
       reason:
         score >= 70

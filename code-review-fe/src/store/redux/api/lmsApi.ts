@@ -655,7 +655,7 @@ export const lmsApi = baseApi.injectEndpoints({
         try {
           const { data } = await queryFulfilled
           dispatch(
-            baseApi.util.updateQueryData("getMyClasses", undefined, (draft) => {
+            lmsApi.util.updateQueryData("getMyClasses", undefined, (draft) => {
               draft.unshift(toClassSummaryFromCreate(data, request))
             })
           )
@@ -693,7 +693,7 @@ export const lmsApi = baseApi.injectEndpoints({
         try {
           const { data } = await queryFulfilled
           dispatch(
-            baseApi.util.updateQueryData("getMyClasses", undefined, (draft) => {
+            lmsApi.util.updateQueryData("getMyClasses", undefined, (draft) => {
               const item = draft.find((classroom) => classroom.id === classId)
               if (!item) return
               item.name = data.name
@@ -702,7 +702,7 @@ export const lmsApi = baseApi.injectEndpoints({
             })
           )
           dispatch(
-            baseApi.util.updateQueryData("getClassById", classId, (draft) => {
+            lmsApi.util.updateQueryData("getClassById", classId, (draft) => {
               draft.name = data.name
               draft.schedule = schedule ?? draft.schedule ?? null
               draft.imageUrl = data.imageUrl ?? draft.imageUrl ?? null
@@ -721,7 +721,7 @@ export const lmsApi = baseApi.injectEndpoints({
         try {
           await queryFulfilled
           dispatch(
-            baseApi.util.updateQueryData("getMyClasses", undefined, (draft) =>
+            lmsApi.util.updateQueryData("getMyClasses", undefined, (draft) =>
               draft.filter((classroom) => classroom.id !== classId)
             )
           )
@@ -738,7 +738,7 @@ export const lmsApi = baseApi.injectEndpoints({
         try {
           await queryFulfilled
           dispatch(
-            baseApi.util.updateQueryData("getMyClasses", undefined, (draft) => {
+            lmsApi.util.updateQueryData("getMyClasses", undefined, (draft) => {
               const item = draft.find((classroom) => classroom.id === classId)
               if (item) {
                 item.enrolledStudentsCount += 1
@@ -746,7 +746,7 @@ export const lmsApi = baseApi.injectEndpoints({
             })
           )
           dispatch(
-            baseApi.util.updateQueryData("getClassById", classId, (draft) => {
+            lmsApi.util.updateQueryData("getClassById", classId, (draft) => {
               draft.enrolledStudentsCount += 1
             })
           )
@@ -766,12 +766,12 @@ export const lmsApi = baseApi.injectEndpoints({
         try {
           await queryFulfilled
           dispatch(
-            baseApi.util.updateQueryData("getClassStudents", classId, (draft) =>
+            lmsApi.util.updateQueryData("getClassStudents", classId, (draft) =>
               draft.filter((student) => student.userCode !== userCode)
             )
           )
           dispatch(
-            baseApi.util.updateQueryData("getMyClasses", undefined, (draft) => {
+            lmsApi.util.updateQueryData("getMyClasses", undefined, (draft) => {
               const item = draft.find((classroom) => classroom.id === classId)
               if (item) {
                 item.enrolledStudentsCount = Math.max(0, item.enrolledStudentsCount - 1)
@@ -779,7 +779,7 @@ export const lmsApi = baseApi.injectEndpoints({
             })
           )
           dispatch(
-            baseApi.util.updateQueryData("getClassById", classId, (draft) => {
+            lmsApi.util.updateQueryData("getClassById", classId, (draft) => {
               draft.enrolledStudentsCount = Math.max(0, draft.enrolledStudentsCount - 1)
             })
           )
@@ -850,7 +850,7 @@ export const lmsApi = baseApi.injectEndpoints({
         try {
           const { data } = await queryFulfilled
           dispatch(
-            baseApi.util.updateQueryData("getClassTopics", classId, (draft) => {
+            lmsApi.util.updateQueryData("getClassTopics", classId, (draft) => {
               draft.push({
                 id: data.id,
                 title: data.title,
@@ -880,7 +880,7 @@ export const lmsApi = baseApi.injectEndpoints({
           try {
             const { data } = await queryFulfilled
             dispatch(
-              baseApi.util.updateQueryData("getClassTopics", classId, (draft) => {
+              lmsApi.util.updateQueryData("getClassTopics", classId, (draft) => {
                 updateClassTopicsTopic(draft, topicId, (topic) => ({
                   ...topic,
                   title: data.title,
@@ -901,7 +901,7 @@ export const lmsApi = baseApi.injectEndpoints({
         try {
           await queryFulfilled
           dispatch(
-            baseApi.util.updateQueryData("getClassTopics", classId, (draft) =>
+            lmsApi.util.updateQueryData("getClassTopics", classId, (draft) =>
               draft.filter((topic) => topic.id !== topicId)
             )
           )
@@ -927,7 +927,7 @@ export const lmsApi = baseApi.injectEndpoints({
         try {
           const { data } = await queryFulfilled
           dispatch(
-            baseApi.util.updateQueryData("getClassTopics", classId, (draft) => {
+            lmsApi.util.updateQueryData("getClassTopics", classId, (draft) => {
               updateClassTopicsTopic(draft, topicId, (topic) => ({
                 ...topic,
                 documents: [...topic.documents, data],
@@ -964,7 +964,7 @@ export const lmsApi = baseApi.injectEndpoints({
         try {
           const { data } = await queryFulfilled
           dispatch(
-            baseApi.util.updateQueryData("getClassTopics", classId, (draft) => {
+            lmsApi.util.updateQueryData("getClassTopics", classId, (draft) => {
               updateClassTopicsTopic(draft, topicId, (topic) => ({
                 ...topic,
                 documents: topic.documents.map((document) =>
@@ -986,7 +986,7 @@ export const lmsApi = baseApi.injectEndpoints({
         try {
           await queryFulfilled
           dispatch(
-            baseApi.util.updateQueryData("getClassTopics", classId, (draft) => {
+            lmsApi.util.updateQueryData("getClassTopics", classId, (draft) => {
               draft.forEach((topic) => {
                 topic.documents = topic.documents.filter((document) => document.id !== documentId)
               })
@@ -1017,7 +1017,7 @@ export const lmsApi = baseApi.injectEndpoints({
         try {
           const { data } = await queryFulfilled
           dispatch(
-            baseApi.util.updateQueryData("getClassTopics", classId, (draft) => {
+            lmsApi.util.updateQueryData("getClassTopics", classId, (draft) => {
               updateClassTopicsTopic(draft, topicId, (topic) => ({
                 ...topic,
                 assignments: [...topic.assignments, data],
@@ -1049,7 +1049,7 @@ export const lmsApi = baseApi.injectEndpoints({
         try {
           const { data } = await queryFulfilled
           dispatch(
-            baseApi.util.updateQueryData("getClassTopics", classId, (draft) => {
+            lmsApi.util.updateQueryData("getClassTopics", classId, (draft) => {
               const currentTopic = draft.find((topic) =>
                 topic.assignments.some((assignment) => assignment.id === assignmentId)
               )
@@ -1077,7 +1077,7 @@ export const lmsApi = baseApi.injectEndpoints({
         try {
           await queryFulfilled
           dispatch(
-            baseApi.util.updateQueryData("getClassTopics", classId, (draft) => {
+            lmsApi.util.updateQueryData("getClassTopics", classId, (draft) => {
               removeAssignmentFromTopics(draft, assignmentId)
             })
           )

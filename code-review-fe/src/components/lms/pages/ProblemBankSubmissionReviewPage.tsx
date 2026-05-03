@@ -8,6 +8,7 @@ import AssignmentAttemptHeader from "@/components/lms/pages/code-problem/Assignm
 import EditorWorkspaceCard from "@/components/lms/pages/code-problem/EditorWorkspaceCard"
 import ProblemWorkspaceTabs from "@/components/lms/pages/code-problem/ProblemWorkspaceTabs"
 import { useKeepAliveTabs } from "@/hooks/useKeepAliveTabs"
+import { normalizeProblemDifficulty } from "@/lib/problem-difficulty"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { Assignment, CodingProblem } from "@/data/lms/mockData"
 import type { ExecutionSummary } from "@/services/lms/mockLmsService"
@@ -22,12 +23,6 @@ import {
 
 type ActiveTab = "description" | "testcases" | "result" | "review"
 
-function toDifficultyLabel(value: string): "Easy" | "Medium" | "Hard" {
-  if (value === "HARD" || value === "Hard") return "Hard"
-  if (value === "MEDIUM" || value === "Medium") return "Medium"
-  return "Easy"
-}
-
 function buildReviewAssignment(problem: ProblemDetailResponse): Assignment {
   return {
     id: problem.id,
@@ -38,7 +33,7 @@ function buildReviewAssignment(problem: ProblemDetailResponse): Assignment {
     dueDate: "",
     status: "submitted",
     points: 100,
-    difficulty: toDifficultyLabel(problem.difficulty),
+    difficulty: normalizeProblemDifficulty(problem.difficulty),
     type: "code",
   }
 }
@@ -57,7 +52,7 @@ function buildReviewProblem(problem: ProblemDetailResponse): CodingProblem {
     id: problem.id,
     assignmentId: problem.id,
     title: problem.title,
-    difficulty: toDifficultyLabel(problem.difficulty),
+    difficulty: normalizeProblemDifficulty(problem.difficulty),
     description: problem.description || "Đề bài đang được đồng bộ từ thư viện bài luyện tập.",
     problemConstraint: problem.problemConstraint ?? "",
     examples: visibleExamples,

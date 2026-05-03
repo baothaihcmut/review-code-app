@@ -2,11 +2,12 @@ import { CheckCircle2, Circle, Clock3, Sparkles } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import type { ProblemDifficulty } from "@/lib/problem-difficulty"
 
 type RecommendedProblem = {
   id: string
   title: string
-  difficulty: "Easy" | "Medium" | "Hard"
+  difficulty: ProblemDifficulty
   topics: string[]
   estimatedMinutes: number
   solved: boolean

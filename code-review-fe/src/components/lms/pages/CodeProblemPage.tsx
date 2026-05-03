@@ -48,6 +48,7 @@ import {
   useReviewCodeMutation,
 } from "@/store/redux/api/lmsApi"
 import { useToast } from "@/components/ui/toast-provider"
+import { normalizeProblemDifficulty } from "@/lib/problem-difficulty"
 import { cn } from "@/lib/utils"
 
 type Language = "cpp"
@@ -63,12 +64,6 @@ const DEFAULT_LEFT_PANE_WIDTH = 52
 const MIN_LEFT_PANE_WIDTH = 28
 const MAX_LEFT_PANE_WIDTH = 72
 
-function toDifficultyLabel(value: string): "Easy" | "Medium" | "Hard" {
-  if (value === "HARD" || value === "Hard") return "Hard"
-  if (value === "MEDIUM" || value === "Medium") return "Medium"
-  return "Easy"
-}
-
 function toSubmissionStatus(score: number): "submitted" | "reviewed" {
   return score >= 70 ? "reviewed" : "submitted"
 }
@@ -83,7 +78,7 @@ function buildDynamicAssignment(context: NonNullable<ReturnType<typeof useGetAss
     dueDate: context.deadline,
     status: "pending",
     points: context.maxScore ?? 100,
-    difficulty: toDifficultyLabel(context.difficulty),
+    difficulty: normalizeProblemDifficulty(context.difficulty),
     type: "code",
   }
 }
@@ -111,7 +106,7 @@ function buildDynamicProblem(
     id: assignmentProblem?.id ?? `problem-${context.id}`,
     assignmentId: context.id,
     title: context.title,
-    difficulty: toDifficultyLabel(context.difficulty),
+    difficulty: normalizeProblemDifficulty(context.difficulty),
     description:
       assignmentProblem?.description ||
       cachedProblem?.description ||
@@ -146,7 +141,7 @@ function buildPracticeAssignment(problem: ProblemDetailResponse): Assignment {
     dueDate: "",
     status: "pending",
     points: 100,
-    difficulty: toDifficultyLabel(problem.difficulty),
+    difficulty: normalizeProblemDifficulty(problem.difficulty),
     type: "code",
   }
 }
@@ -165,7 +160,7 @@ function buildPracticeProblem(problem: ProblemDetailResponse): CodingProblem {
     id: problem.id,
     assignmentId: problem.id,
     title: problem.title,
-    difficulty: toDifficultyLabel(problem.difficulty),
+    difficulty: normalizeProblemDifficulty(problem.difficulty),
     description: problem.description || "Đề bài đang được đồng bộ từ thư viện bài luyện tập.",
     problemConstraint: problem.problemConstraint ?? "",
     examples: visibleExamples,

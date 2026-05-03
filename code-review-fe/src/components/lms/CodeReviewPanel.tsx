@@ -4,11 +4,12 @@ import { MessageResponse } from "@/components/ai-elements/message";
 import RecommendedProblems from "@/components/lms/RecommendedProblems";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { CodeReviewFeedback } from "@/data/lms/extendedMockData";
+import type { ProblemDifficulty } from "@/lib/problem-difficulty";
 
 type ReviewProblem = {
   id: string;
   title: string;
-  difficulty: "Easy" | "Medium" | "Hard";
+  difficulty: ProblemDifficulty;
   topics: string[];
   estimatedMinutes: number;
   solved: boolean;

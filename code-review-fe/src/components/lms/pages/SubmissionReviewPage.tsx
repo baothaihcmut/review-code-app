@@ -8,6 +8,7 @@ import AssignmentAttemptHeader from "@/components/lms/pages/code-problem/Assignm
 import EditorWorkspaceCard from "@/components/lms/pages/code-problem/EditorWorkspaceCard"
 import ProblemWorkspaceTabs from "@/components/lms/pages/code-problem/ProblemWorkspaceTabs"
 import { useKeepAliveTabs } from "@/hooks/useKeepAliveTabs"
+import { normalizeProblemDifficulty } from "@/lib/problem-difficulty"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { Assignment, CodingProblem } from "@/data/lms/mockData"
 import type { ExecutionSummary } from "@/services/lms/mockLmsService"
@@ -26,12 +27,6 @@ import {
 
 type ActiveTab = "description" | "testcases" | "result" | "review"
 
-function toDifficultyLabel(value: string): "Easy" | "Medium" | "Hard" {
-  if (value === "HARD") return "Hard"
-  if (value === "MEDIUM") return "Medium"
-  return "Easy"
-}
-
 function buildReviewAssignment(context: AssignmentContext): Assignment {
   return {
     id: context.id,
@@ -42,7 +37,7 @@ function buildReviewAssignment(context: AssignmentContext): Assignment {
     dueDate: context.deadline,
     status: "submitted",
     points: context.maxScore ?? 100,
-    difficulty: toDifficultyLabel(context.difficulty),
+    difficulty: normalizeProblemDifficulty(context.difficulty),
     type: "code",
   }
 }
@@ -65,7 +60,7 @@ function buildReviewProblem(
     id: assignmentProblem?.id ?? `problem-${context.id}`,
     assignmentId: context.id,
     title: context.title,
-    difficulty: toDifficultyLabel(context.difficulty),
+    difficulty: normalizeProblemDifficulty(context.difficulty),
     description: assignmentProblem?.description || "Đề bài đang được đồng bộ từ assignment này.",
     problemConstraint: assignmentProblem?.problemConstraint ?? "",
     examples: visibleExamples,
