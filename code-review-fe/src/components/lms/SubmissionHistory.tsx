@@ -106,10 +106,12 @@ function BackendSubmissionHistoryItem({
               <CalendarClock className="size-3" />
               {new Date(submission.submittedAt).toLocaleString("en-GB")}
             </span>
-            <span className="inline-flex items-center gap-1">
-              <ListChecks className="size-3" />
-              Bắt đầu {new Date(submission.startedAt).toLocaleString("en-GB")}
-            </span>
+            {submission.startedAt && (
+              <span className="inline-flex items-center gap-1">
+                <ListChecks className="size-3" />
+                Bắt đầu {new Date(submission.startedAt).toLocaleString("en-GB")}
+              </span>
+            )}
           </div>
         </div>
 
