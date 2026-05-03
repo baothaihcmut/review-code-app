@@ -9,6 +9,7 @@ type CachedAssignmentProblem = {
     hidden: boolean
   }>
   tags: string[]
+  constraints?: string[]
 }
 
 const STORAGE_KEY = "bk-learning-assignment-problems"
