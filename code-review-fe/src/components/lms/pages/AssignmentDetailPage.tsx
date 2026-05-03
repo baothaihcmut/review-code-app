@@ -2,6 +2,10 @@
 
 import Link from "next/link"
 
+import {
+  AssignmentDetailSkeleton,
+  SubmissionHistorySkeleton,
+} from "@/components/lms/LmsLoadingStates"
 import type { UserRole } from "@/data/lms/extendedMockData"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -125,13 +129,7 @@ export default function AssignmentDetailPage({
   })
 
   if (isLoading) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Đang tải bài tập...</CardTitle>
-        </CardHeader>
-      </Card>
-    )
+    return <AssignmentDetailSkeleton />
   }
 
   if (error || !assignment) {
@@ -185,10 +183,6 @@ export default function AssignmentDetailPage({
           ))}
         </div>
         <h1 className="mt-4 text-3xl font-bold text-[#030391]">{assignment.title}</h1>
-        <p className="mt-3 max-w-3xl text-slate-600">
-          Bài tập thuộc topic {assignment.topicTitle}. Lịch sử làm bài và các mốc thời gian được
-          đồng bộ từ assignment hiện tại.
-        </p>
       </div>
 
       <Card>
@@ -258,11 +252,7 @@ export default function AssignmentDetailPage({
       <div className="space-y-4">
         <h2 className="text-2xl font-bold text-[#030391]">Lịch sử làm bài</h2>
         {isLoadingSubmissions ? (
-          <Card>
-            <CardContent className="py-10 text-center text-sm text-slate-500">
-              Đang tải lịch sử nộp bài...
-            </CardContent>
-          </Card>
+          <SubmissionHistorySkeleton />
         ) : submissions.length === 0 ? (
           <Card>
             <CardContent className="py-10 text-center text-sm text-slate-500">

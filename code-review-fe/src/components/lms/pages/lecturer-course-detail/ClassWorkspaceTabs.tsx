@@ -5,19 +5,9 @@ import type { FormEvent } from "react"
 import ContentTab from "@/components/lms/pages/lecturer-course-detail/ContentTab"
 import StudentEnrollmentCard from "@/components/lms/pages/lecturer-course-detail/StudentEnrollmentCard"
 import StudentsMonitoringTab from "@/components/lms/pages/lecturer-course-detail/StudentsMonitoringTab"
-import type {
-  AssignmentDraft,
-  TopicCard,
-} from "@/components/lms/pages/lecturer-course-detail/types"
+import type { TopicCard } from "@/components/lms/pages/lecturer-course-detail/types"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { ClassStudent } from "@/store/redux/api/lmsApi"
-
-type FeedbackState =
-  | {
-      tone: "success" | "error"
-      message: string
-    }
-  | null
 
 export default function ClassWorkspaceTabs({
   activeTab,
@@ -26,10 +16,8 @@ export default function ClassWorkspaceTabs({
   editMode,
   topicCards,
   collapsedTopics,
-  contentFeedback,
   classroom,
   userCode,
-  feedback,
   recentStudentIds,
   students,
   isAddingStudent,
@@ -39,12 +27,13 @@ export default function ClassWorkspaceTabs({
   formattedCreatedAt,
   onTabChange,
   onToggleTopic,
-  onUpdateTopic,
+  onEditTopic,
   onDeleteTopic,
   onDeleteMaterial,
   onOpenResourceModal,
   onOpenAssignmentModal,
-  onDeleteDraftAssignment,
+  onEditAssignment,
+  onDeleteAssignment,
   onAddSection,
   onUserCodeChange,
   onAddStudent,
@@ -57,14 +46,12 @@ export default function ClassWorkspaceTabs({
   editMode: boolean
   topicCards: TopicCard[]
   collapsedTopics: Record<string, boolean>
-  contentFeedback: FeedbackState
   classroom: {
     instructorName: string
     enrolledStudentsCount: number
     schedule: string | null
   }
   userCode: string
-  feedback: FeedbackState
   recentStudentIds: string[]
   students: ClassStudent[]
   isAddingStudent: boolean
@@ -74,12 +61,13 @@ export default function ClassWorkspaceTabs({
   formattedCreatedAt: string
   onTabChange: (value: "content" | "students") => void
   onToggleTopic: (topicId: string) => void
-  onUpdateTopic: (topicId: string, patch: { title?: string; summary?: string }) => void
+  onEditTopic: (topicId: string) => void
   onDeleteTopic: (topicId: string) => void
   onDeleteMaterial: (materialId: string) => void
   onOpenResourceModal: (topicId: string, materialId?: string) => void
-  onOpenAssignmentModal: (topicId: string, draft?: AssignmentDraft) => void
-  onDeleteDraftAssignment: (draftId: string) => void
+  onOpenAssignmentModal: (topicId: string, source: "manual" | "library") => void
+  onEditAssignment: (assignmentId: string) => void
+  onDeleteAssignment: (assignmentId: string) => void
   onAddSection: () => void
   onUserCodeChange: (value: string) => void
   onAddStudent: (event: FormEvent<HTMLFormElement>) => void
@@ -101,15 +89,15 @@ export default function ClassWorkspaceTabs({
         <ContentTab
           topicCards={topicCards}
           editMode={editMode}
-          feedback={contentFeedback}
           collapsedTopics={collapsedTopics}
           onToggleTopic={onToggleTopic}
-          onUpdateTopic={onUpdateTopic}
+          onEditTopic={onEditTopic}
           onDeleteTopic={onDeleteTopic}
           onDeleteMaterial={onDeleteMaterial}
           onOpenResourceModal={onOpenResourceModal}
           onOpenAssignmentModal={onOpenAssignmentModal}
-          onDeleteDraftAssignment={onDeleteDraftAssignment}
+          onEditAssignment={onEditAssignment}
+          onDeleteAssignment={onDeleteAssignment}
           onAddSection={onAddSection}
           assignmentHrefPrefix={assignmentHrefPrefix}
         />
@@ -127,7 +115,6 @@ export default function ClassWorkspaceTabs({
           createdAt={formattedCreatedAt}
           schedule={classroom.schedule}
           userCode={userCode}
-          feedback={feedback}
           recentStudentIds={recentStudentIds}
           isSubmitting={isAddingStudent}
           onUserCodeChange={onUserCodeChange}

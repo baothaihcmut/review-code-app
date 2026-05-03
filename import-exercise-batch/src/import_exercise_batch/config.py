@@ -58,6 +58,7 @@ class LeetCodeSettings:
     max_retries: int
     backoff_seconds: float
     limit: int
+    similar_question_max_depth: int
 
     @classmethod
     def from_env(cls) -> "LeetCodeSettings":
@@ -71,28 +72,59 @@ class LeetCodeSettings:
             max_retries=int(os.getenv("MAX_RETRIES", "3")),
             backoff_seconds=float(os.getenv("BACKOFF_SECONDS", "1.5")),
             limit=int(os.getenv("LEETCODE_FETCH_LIMIT", "100")),
+            similar_question_max_depth=max(
+                0, int(os.getenv("LEETCODE_SIMILAR_QUESTION_MAX_DEPTH", "3"))
+            ),
         )
 
 
 @dataclass(frozen=True)
 class CodeReviewApiSettings:
     base_url: str
+    max_retries: int
+    backoff_seconds: float
+    batch_import_chunk_size: int
 
     @classmethod
     def from_env(cls) -> "CodeReviewApiSettings":
-        return cls(base_url=os.getenv("CODE_REVIEW_API_BASE_URL", ""))
+        return cls(
+            base_url=os.getenv("CODE_REVIEW_API_BASE_URL", ""),
+            max_retries=max(1, int(os.getenv("CODE_REVIEW_API_MAX_RETRIES", "3"))),
+            backoff_seconds=float(os.getenv("CODE_REVIEW_API_BACKOFF_SECONDS", "1.5")),
+            batch_import_chunk_size=max(
+                1, int(os.getenv("CODE_REVIEW_API_BATCH_IMPORT_CHUNK_SIZE", "100"))
+            ),
+        )
 
 
 @dataclass(frozen=True)
 class CodeReviewAiApiSettings:
     base_url: str
     max_workers: int
+    max_retries: int
+    backoff_seconds: float
+    put_exercise_chunk_size: int
+    patch_exercise_relations_chunk_size: int
 
     @classmethod
     def from_env(cls) -> "CodeReviewAiApiSettings":
         return cls(
             base_url=os.getenv("CODE_REVIEW_AI_BASE_URL", ""),
             max_workers=max(1, int(os.getenv("CODE_REVIEW_AI_MAX_WORKERS", "8"))),
+            max_retries=max(1, int(os.getenv("CODE_REVIEW_AI_MAX_RETRIES", "3"))),
+            backoff_seconds=float(os.getenv("CODE_REVIEW_AI_BACKOFF_SECONDS", "1.5")),
+            put_exercise_chunk_size=max(
+                1, int(os.getenv("CODE_REVIEW_AI_PUT_EXERCISE_CHUNK_SIZE", "100"))
+            ),
+            patch_exercise_relations_chunk_size=max(
+                1,
+                int(
+                    os.getenv(
+                        "CODE_REVIEW_AI_PATCH_EXERCISE_RELATIONS_CHUNK_SIZE",
+                        "8",
+                    )
+                ),
+            ),
         )
 
 

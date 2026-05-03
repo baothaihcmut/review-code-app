@@ -23,7 +23,7 @@ class ModelConfigOverrideTests(unittest.TestCase):
         review_link_stage = config.get_stage_config("review", "review_link")
         scoring_stage = config.get_stage_config("review", "scoring")
 
-        self.assertEqual(logic_stage.model_name, "fireworks/kimi-k2p5")
+        self.assertEqual(logic_stage.model_name, "fireworks/deepseek-v3p2")
         self.assertEqual(logic_stage.temperature, 0.1)
         self.assertEqual(logic_stage.max_tokens, 2200)
 
@@ -43,14 +43,14 @@ class ModelConfigOverrideTests(unittest.TestCase):
         config = build_env_config(
             {
                 "FIREWORKS_API_KEY": "test-key",
-                "RECOMMENDATION_CONTEXT_PLANNER_MODEL": "fireworks/test-context-planner",
-                "RECOMMENDATION_CONTEXT_PLANNER_TEMPERATURE": "0.05",
-                "RECOMMENDATION_CONTEXT_PLANNER_MAX_TOKENS": "777",
+                "RECOMMENDATION_RERANKER_MODEL": "accounts/fireworks/models/test-reranker",
+                "RECOMMENDATION_RERANKER_TEMPERATURE": "0.05",
+                "RECOMMENDATION_RERANKER_MAX_TOKENS": "777",
             }
         )
 
-        stage = config.get_stage_config("recommendation", "context_planner")
-        self.assertEqual(stage.model_name, "fireworks/test-context-planner")
+        stage = config.get_stage_config("recommendation", "reranker")
+        self.assertEqual(stage.model_name, "accounts/fireworks/models/test-reranker")
         self.assertEqual(stage.temperature, 0.05)
         self.assertEqual(stage.max_tokens, 777)
 
@@ -67,26 +67,30 @@ class ModelConfigOverrideTests(unittest.TestCase):
 
         self.assertEqual(logic_stage.model_name, "fireworks/test-review-model")
         self.assertEqual(scoring_stage.model_name, "fireworks/test-review-model")
-        self.assertEqual(logic_stage.max_tokens, 1800)
-        self.assertEqual(scoring_stage.max_tokens, 1600)
+        self.assertEqual(logic_stage.max_tokens, 2200)
+        self.assertEqual(scoring_stage.max_tokens, 1800)
 
     def test_stage_specific_override_wins_over_feature_level_model(self):
         config = build_env_config(
             {
                 "FIREWORKS_API_KEY": "test-key",
                 "RECOMMENDATION_MODEL": "fireworks/recommendation-default",
-                "RECOMMENDATION_ROADMAP_BUILDER_MODEL": "fireworks/roadmap-builder-override",
+                "RECOMMENDATION_RERANKER_MODEL": "accounts/fireworks/models/reranker-override",
+                "RECOMMENDATION_ROADMAP_BUILDER_MODEL": "fireworks/roadmap-override",
             }
         )
 
-        roadmap_stage = config.get_stage_config("recommendation", "roadmap_builder")
-        explanation_stage = config.get_stage_config(
-            "recommendation", "explanation_builder"
+        reranker_stage = config.get_stage_config("recommendation", "reranker")
+        roadmap_stage = config.get_stage_config(
+            "recommendation", "roadmap_builder"
         )
 
-        self.assertEqual(roadmap_stage.model_name, "fireworks/roadmap-builder-override")
-        self.assertEqual(explanation_stage.model_name, "fireworks/recommendation-default")
-
+        self.assertEqual(
+            reranker_stage.model_name, "accounts/fireworks/models/reranker-override"
+        )
+        self.assertEqual(
+            roadmap_stage.model_name, "fireworks/roadmap-override"
+        )
 
 if __name__ == "__main__":
     unittest.main()

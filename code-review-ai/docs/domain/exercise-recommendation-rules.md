@@ -15,9 +15,10 @@ It focuses on:
 
 For the exercise write flow:
 
-- the request provides:
+- the `PUT /knowledgegraph/exercises/{exercise_id}` request provides:
   - exercise metadata
-  - `concept_ids`
+  - `concept_slugs`
+- the `PATCH /knowledgegraph/exercises/{exercise_id}/relations` request provides:
   - `related_exercise_ids`
 - Neo4j provides the related `Concept` and `Exercise` entities by id
 - the knowledge-graph LLM evaluates relation weights and path metadata
@@ -32,13 +33,12 @@ Relation:
 
 Domain rule:
 
-- every `concept_id` in the exercise request must already exist
+- every `concept_slug` in the exercise upsert request must already exist
 - the API resolves the concept node from Neo4j before writing the relation
 - `weight` is evaluated by the knowledge-graph LLM from:
   - main exercise title
   - description
   - content
-  - tags
   - resolved concept metadata
 
 Meaning:
@@ -74,33 +74,23 @@ Meaning:
 
 Relation:
 
-- `(:Exercise)-[:RELATED_TO {weight, relation_type, target_concept_id, shared_concept_ids, difficulty_gap, progression_score, similarity_score}]->(:Exercise)`
+- `(:Exercise)-[:RELATED_TO {weight, target_concept_id, shared_concept_ids, difficulty_gap, progression_score, similarity_score}]->(:Exercise)`
 
 Domain rule:
 
-- every `related_exercise_id` in the exercise request must already exist
+- every `related_exercise_id` in the exercise relation patch request must already exist
 - the API resolves the related exercise node from Neo4j before writing the relation
 - the knowledge-graph LLM evaluates:
   - `weight`
-  - `relation_type`
   - `target_concept_id`
   - `shared_concept_ids`
   - `difficulty_gap`
   - `progression_score`
   - `similarity_score`
 
-Allowed `relation_type` values:
-
-- `SIMILAR_PRACTICE`
-- `NEXT_STEP`
-- `PREREQUISITE_REVIEW`
-- `SAME_CONCEPT_HARDER`
-- `SAME_CONCEPT_EASIER`
-
 Meaning:
 
 - `weight`: overall strength of the relation
-- `relation_type`: why the relation exists pedagogically
 - `target_concept_id`: concept that best explains the relation
 - `shared_concept_ids`: concepts both exercises meaningfully share
 - `difficulty_gap`: negative means easier, positive means harder
@@ -112,7 +102,7 @@ Meaning:
 If any related id is missing:
 
 - missing `concept_id` -> exercise API returns `404`
-- missing `related_exercise_id` -> exercise API returns `404`
+- missing `related_exercise_id` -> exercise relation patch API returns `404`
 
 The API does not create placeholder concept or exercise nodes from relation payloads.
 

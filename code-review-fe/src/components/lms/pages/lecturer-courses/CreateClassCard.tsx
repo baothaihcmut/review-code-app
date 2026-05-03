@@ -7,17 +7,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 
-type FeedbackState =
-  | {
-      tone: "success" | "error"
-      message: string
-    }
-  | null
-
 export default function CreateClassCard({
   draft,
-  feedback,
   isCreating,
+  submitLabel,
+  submittingLabel,
+  descriptionHint,
   onChange,
   onSubmit,
 }: {
@@ -27,8 +22,10 @@ export default function CreateClassCard({
     image: File | null
     schedule: string
   }
-  feedback: FeedbackState
   isCreating: boolean
+  submitLabel?: string
+  submittingLabel?: string
+  descriptionHint?: string
   onChange: (
     patch: Partial<{ name: string; description: string; image: File | null; schedule: string }>
   ) => void
@@ -46,7 +43,7 @@ export default function CreateClassCard({
     <form className="space-y-4" onSubmit={onSubmit}>
       <div className="space-y-2">
         <label className="text-sm font-medium text-slate-700" htmlFor="class-name">
-          Class name
+          Tên lớp học
         </label>
         <Input
           id="class-name"
@@ -58,19 +55,20 @@ export default function CreateClassCard({
 
       <div className="space-y-2">
         <label className="text-sm font-medium text-slate-700" htmlFor="class-description">
-          Description
+          Mô tả
         </label>
         <Textarea
           id="class-description"
           value={draft.description}
           onChange={(event) => onChange({ description: event.target.value })}
-          placeholder="Describe the class scope or notes for this section."
+          placeholder="Mô tả ngắn nội dung, phạm vi hoặc ghi chú của lớp."
         />
+        {descriptionHint ? <p className="text-xs text-slate-500">{descriptionHint}</p> : null}
       </div>
 
       <div className="space-y-2">
         <label className="text-sm font-medium text-slate-700" htmlFor="class-image">
-          Class image (optional)
+          Ảnh lớp học
         </label>
         <Input
           ref={fileInputRef}
@@ -86,7 +84,7 @@ export default function CreateClassCard({
 
       <div className="space-y-2">
         <label className="text-sm font-medium text-slate-700" htmlFor="class-schedule">
-          Schedule
+          Lịch học
         </label>
         <Input
           id="class-schedule"
@@ -96,18 +94,6 @@ export default function CreateClassCard({
         />
       </div>
 
-      {feedback ? (
-        <div
-          className={`rounded-2xl border px-4 py-3 text-sm ${
-            feedback.tone === "success"
-              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-              : "border-rose-200 bg-rose-50 text-rose-700"
-          }`}
-        >
-          {feedback.message}
-        </div>
-      ) : null}
-
       <Button
         type="submit"
         className="w-full rounded-xl bg-[#030391] text-white hover:bg-[#030391]/90"
@@ -116,10 +102,10 @@ export default function CreateClassCard({
         {isCreating ? (
           <>
             <LoaderCircle className="size-4 animate-spin" />
-            Creating class...
+            {submittingLabel ?? "Đang tạo lớp..."}
           </>
         ) : (
-          "Create class"
+          submitLabel ?? "Tạo lớp"
         )}
       </Button>
     </form>

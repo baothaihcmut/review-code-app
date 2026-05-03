@@ -2,6 +2,7 @@
 
 import { useMemo } from "react"
 
+import { AttemptWorkspaceSkeleton } from "@/components/lms/LmsLoadingStates"
 import type { UserRole } from "@/data/lms/extendedMockData"
 import AssignmentAttemptHeader from "@/components/lms/pages/code-problem/AssignmentAttemptHeader"
 import EditorWorkspaceCard from "@/components/lms/pages/code-problem/EditorWorkspaceCard"
@@ -66,13 +67,9 @@ function buildReviewProblem(
     title: context.title,
     difficulty: toDifficultyLabel(context.difficulty),
     description: assignmentProblem?.description || "Đề bài đang được đồng bộ từ assignment này.",
+    problemConstraint: assignmentProblem?.problemConstraint ?? "",
     examples: visibleExamples,
-    constraints: assignmentProblem?.problemConstraint
-      ? assignmentProblem.problemConstraint
-          .split("\n")
-          .map((item) => item.trim())
-          .filter(Boolean)
-      : [],
+    constraints: [],
     functionSkeleton: {
       python: assignmentProblem?.functionSkeletons?.python ?? "",
       javascript: assignmentProblem?.functionSkeletons?.javascript ?? "",
@@ -174,13 +171,7 @@ export default function SubmissionReviewPage({
     isLoadingTestcases ||
     isLoadingDetail
   ) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Đang tải bài làm đã nộp...</CardTitle>
-        </CardHeader>
-      </Card>
-    )
+    return <AttemptWorkspaceSkeleton title="Đang tải bài làm đã nộp..." />
   }
 
   if (
@@ -241,12 +232,6 @@ export default function SubmissionReviewPage({
           readOnly
           hideActions
           helperTitle="Review snapshot"
-          helperLines={[
-            `Submission ID: ${submission.submissionId}`,
-            `Started at: ${submission.startedAt}`,
-            `Submitted at: ${submission.submittedAt}`,
-            "Đây là bản xem lại của lần nộp đã chốt, không thể chỉnh sửa hoặc gửi lại từ màn này.",
-          ]}
           onCodeChange={() => {}}
           onRun={() => {}}
           onSubmit={() => {}}

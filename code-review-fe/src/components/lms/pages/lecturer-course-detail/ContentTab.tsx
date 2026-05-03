@@ -4,59 +4,39 @@ import { memo } from "react"
 import { Plus } from "lucide-react"
 
 import TopicSectionCard from "@/components/lms/pages/lecturer-course-detail/TopicSectionCard"
-import type {
-  AssignmentDraft,
-  TopicCard,
-} from "@/components/lms/pages/lecturer-course-detail/types"
+import type { TopicCard } from "@/components/lms/pages/lecturer-course-detail/types"
 
 function ContentTabComponent({
   topicCards,
   editMode,
-  feedback,
   collapsedTopics,
   onToggleTopic,
-  onUpdateTopic,
+  onEditTopic,
   onDeleteTopic,
   onDeleteMaterial,
   onOpenResourceModal,
   onOpenAssignmentModal,
-  onDeleteDraftAssignment,
+  onEditAssignment,
+  onDeleteAssignment,
   onAddSection,
   assignmentHrefPrefix,
 }: {
   topicCards: TopicCard[]
   editMode: boolean
-  feedback:
-    | {
-        tone: "success" | "error"
-        message: string
-      }
-    | null
   collapsedTopics: Record<string, boolean>
   onToggleTopic: (topicId: string) => void
-  onUpdateTopic: (topicId: string, patch: { title?: string; summary?: string }) => void
+  onEditTopic: (topicId: string) => void
   onDeleteTopic: (topicId: string) => void
   onDeleteMaterial: (materialId: string) => void
   onOpenResourceModal: (topicId: string, materialId?: string) => void
-  onOpenAssignmentModal: (topicId: string, draft?: AssignmentDraft) => void
-  onDeleteDraftAssignment: (draftId: string) => void
+  onOpenAssignmentModal: (topicId: string, source: "manual" | "library") => void
+  onEditAssignment: (assignmentId: string) => void
+  onDeleteAssignment: (assignmentId: string) => void
   onAddSection: () => void
   assignmentHrefPrefix?: string
 }) {
   return (
     <div className="mt-6 space-y-5">
-      {feedback ? (
-        <div
-          className={`rounded-2xl border px-4 py-3 text-sm ${
-            feedback.tone === "success"
-              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-              : "border-rose-200 bg-rose-50 text-rose-700"
-          }`}
-        >
-          {feedback.message}
-        </div>
-      ) : null}
-
       {topicCards.length === 0 ? (
         <div className="rounded-[2rem] border border-dashed border-slate-300 bg-white px-6 py-10 text-center">
           <p className="text-lg font-semibold text-[#030391]">Hiện chưa có topic nào</p>
@@ -85,12 +65,13 @@ function ContentTabComponent({
           collapsed={Boolean(collapsedTopics[topic.id])}
           editMode={editMode}
           onToggleTopic={onToggleTopic}
-          onUpdateTopic={onUpdateTopic}
+          onEditTopic={onEditTopic}
           onDeleteTopic={onDeleteTopic}
           onDeleteMaterial={onDeleteMaterial}
           onOpenResourceModal={onOpenResourceModal}
           onOpenAssignmentModal={onOpenAssignmentModal}
-          onDeleteDraftAssignment={onDeleteDraftAssignment}
+          onEditAssignment={onEditAssignment}
+          onDeleteAssignment={onDeleteAssignment}
           assignmentHrefPrefix={assignmentHrefPrefix}
         />
       ))}

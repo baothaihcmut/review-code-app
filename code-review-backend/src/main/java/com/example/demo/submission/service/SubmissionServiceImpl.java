@@ -64,8 +64,10 @@ public class SubmissionServiceImpl implements SubmissionService {
                         .passedTestcases(result.getPassedTestcases())
                         .totalTestcases(result.getTotalTestcases())
                         .score(String.valueOf((double) result.getPassedTestcases() / result.getTotalTestcases() * 100))
+                        .startedAt(request.getStartedAt())
                         .submittedAt(Instant.now())
                         .testcaseResults(result.getTestcases())
+                        
                         .build()
         );
 
@@ -83,6 +85,7 @@ public class SubmissionServiceImpl implements SubmissionService {
                 .submissionId(submission.getId())
                 .status(SubmissionStatus.SUBMITTED)
                 // .startedAt(request.getStartedAt())
+                .startedAt(request.getStartedAt())
                 .submittedAt(submission.getSubmittedAt())
                 .score(submission.getScore())
                 .build();
@@ -123,5 +126,10 @@ public class SubmissionServiceImpl implements SubmissionService {
         public List<SubmissionOverviewResponse> getProblemSubmissions(UUID problemId) {
 
             return submissionRepository.getSubmissionOverviewByProblem(problemId);      
+        }
+
+        @Override
+        public List<Submission> getAllSubmissionsByProblemIdAndUserId(UUID userId, UUID problemId) {
+            return submissionRepository.getAllSubmissionsByProblemIdAndUserId(userId, problemId);
         }
 }

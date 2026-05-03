@@ -23,6 +23,7 @@ function AssignmentAttemptHeaderComponent({
   backHref,
   startedAtMs,
   timeLimitMinutes,
+  timerLabel,
   language,
   languages,
   readOnly = false,
@@ -33,17 +34,18 @@ function AssignmentAttemptHeaderComponent({
   backHref: string
   startedAtMs: number
   timeLimitMinutes: number
+  timerLabel?: string
   language: string
-  languages: readonly string[]
+  languages?: readonly string[]
   readOnly?: boolean
-  onLanguageChange: (value: string) => void
+  onLanguageChange?: (value: string) => void
 }) {
   const [remainingMinutesLabel, setRemainingMinutesLabel] = useState(() =>
     formatRemaining(startedAtMs, timeLimitMinutes)
   )
 
   useEffect(() => {
-    if (readOnly) {
+    if (readOnly || timerLabel) {
       return
     }
 
@@ -52,7 +54,7 @@ function AssignmentAttemptHeaderComponent({
     }, 1000)
 
     return () => window.clearInterval(interval)
-  }, [readOnly, startedAtMs, timeLimitMinutes])
+  }, [readOnly, startedAtMs, timeLimitMinutes, timerLabel])
 
   return (
     <>
@@ -77,19 +79,21 @@ function AssignmentAttemptHeaderComponent({
             <>
               <div className="inline-flex items-center gap-2 rounded-2xl border border-[#1488D8]/20 bg-[#f8fbff] px-4 py-2 text-sm font-medium text-[#030391]">
                 <TimerReset className="size-4 text-[#1488D8]" />
-                Còn lại {remainingMinutesLabel}
+                {timerLabel ?? `Còn lại ${remainingMinutesLabel}`}
               </div>
-              <select
-                value={language}
-                onChange={(event) => onLanguageChange(event.target.value)}
-                className="h-9 rounded-md border bg-background px-3 text-sm"
-              >
-                {languages.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </select>
+              {languages && languages.length > 1 && onLanguageChange ? (
+                <select
+                  value={language}
+                  onChange={(event) => onLanguageChange(event.target.value)}
+                  className="h-9 rounded-md border bg-background px-3 text-sm"
+                >
+                  {languages.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </select>
+              ) : null}
             </>
           )}
         </div>
@@ -103,7 +107,6 @@ function AssignmentAttemptHeaderComponent({
           <Badge variant="outline">{assignment.points} points</Badge>
         </div>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
-          <p className="max-w-3xl">{problem.description.split("\n")[0]}</p>
           <div className="flex gap-2">
             {problem.topics.map((topic) => (
               <Badge key={topic} className="bg-[#E3F2FD] text-[#030391] hover:bg-[#E3F2FD]">

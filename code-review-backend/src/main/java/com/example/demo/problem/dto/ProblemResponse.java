@@ -15,6 +15,8 @@ public class ProblemResponse {
 
     private UUID id;
 
+    private String externalId;
+
     private String title;
 
     private String description;
@@ -30,4 +32,6 @@ public class ProblemResponse {
     private List<TestcaseResponse> testcases;
 
     private List<String> similarQuestionIds;
+
+    private List<String> tags;
 }

@@ -1,8 +1,17 @@
 "use client"
 
-import { useCallback, useMemo, useState } from "react"
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react"
 import { useRouter } from "next/navigation"
+import { GripVertical } from "lucide-react"
 
+import { AttemptWorkspaceSkeleton } from "@/components/lms/LmsLoadingStates"
 import type { CodeReviewFeedback } from "@/data/lms/extendedMockData"
 import AssignmentAttemptHeader from "@/components/lms/pages/code-problem/AssignmentAttemptHeader"
 import EditorWorkspaceCard from "@/components/lms/pages/code-problem/EditorWorkspaceCard"
@@ -25,21 +34,23 @@ import {
   type AssignmentTestcaseResponse,
   type JudgeExecutionResponse,
   type CodeReviewResponse,
+  type ProblemDetailResponse,
   type SubmissionDetailResponse,
   useCreateSubmissionMutation,
   useGetAssignmentContextQuery,
   useGetAssignmentProblemQuery,
   useGetAssignmentSubmissionsQuery,
   useGetAssignmentTestcasesQuery,
+  useGetProblemByIdQuery,
+  useGetProblemSubmissionsQuery,
   useGetSubmissionByIdQuery,
   useJudgeExecutionMutation,
   useReviewCodeMutation,
 } from "@/store/redux/api/lmsApi"
+import { useToast } from "@/components/ui/toast-provider"
+import { cn } from "@/lib/utils"
 
-const mockLanguages = ["python", "javascript", "java", "cpp"] as const
-const cppOnlyLanguages = ["cpp"] as const
-
-type Language = (typeof mockLanguages)[number]
+type Language = "cpp"
 type ActiveTab = "description" | "testcases" | "result" | "review"
 type DynamicTestcase = {
   input: string
@@ -48,9 +59,13 @@ type DynamicTestcase = {
   hidden: boolean
 }
 
+const DEFAULT_LEFT_PANE_WIDTH = 52
+const MIN_LEFT_PANE_WIDTH = 28
+const MAX_LEFT_PANE_WIDTH = 72
+
 function toDifficultyLabel(value: string): "Easy" | "Medium" | "Hard" {
-  if (value === "HARD") return "Hard"
-  if (value === "MEDIUM") return "Medium"
+  if (value === "HARD" || value === "Hard") return "Hard"
+  if (value === "MEDIUM" || value === "Medium") return "Medium"
   return "Easy"
 }
 
@@ -101,13 +116,10 @@ function buildDynamicProblem(
       assignmentProblem?.description ||
       cachedProblem?.description ||
       "Đề bài đang được đồng bộ từ assignment này.",
+    problemConstraint:
+      assignmentProblem?.problemConstraint || cachedProblem?.problemConstraint || "",
     examples: visibleExamples,
-    constraints: (assignmentProblem?.problemConstraint || cachedProblem?.problemConstraint)
-      ? (assignmentProblem?.problemConstraint || cachedProblem?.problemConstraint)
-          .split("\n")
-          .map((item: string) => item.trim())
-          .filter(Boolean)
-      : [],
+    constraints: cachedProblem?.constraints ?? [],
     functionSkeleton: {
       python: "",
       javascript: "",
@@ -121,6 +133,56 @@ function buildDynamicProblem(
     })),
     hints: [],
     topics: cachedProblem?.tags ?? context.tags ?? [],
+  }
+}
+
+function buildPracticeAssignment(problem: ProblemDetailResponse): Assignment {
+  return {
+    id: problem.id,
+    courseId: "problem-bank",
+    courseName: "Problem Bank",
+    courseColor: "bg-[#1488D8]",
+    title: problem.title,
+    dueDate: "",
+    status: "pending",
+    points: 100,
+    difficulty: toDifficultyLabel(problem.difficulty),
+    type: "code",
+  }
+}
+
+function buildPracticeProblem(problem: ProblemDetailResponse): CodingProblem {
+  const visibleExamples = (problem.testcases ?? [])
+    .filter((item) => !item.hidden)
+    .slice(0, 2)
+    .map((item) => ({
+      input: item.input,
+      output: item.expectedOutput,
+      explanation: item.explanation,
+    }))
+
+  return {
+    id: problem.id,
+    assignmentId: problem.id,
+    title: problem.title,
+    difficulty: toDifficultyLabel(problem.difficulty),
+    description: problem.description || "Đề bài đang được đồng bộ từ thư viện bài luyện tập.",
+    problemConstraint: problem.problemConstraint ?? "",
+    examples: visibleExamples,
+    constraints: [],
+    functionSkeleton: {
+      python: problem.functionSkeletons?.python ?? "",
+      javascript: problem.functionSkeletons?.javascript ?? "",
+      java: problem.functionSkeletons?.java ?? "",
+      cpp: problem.functionSkeletons?.cpp ?? "",
+    },
+    testCases: (problem.testcases ?? []).map((item) => ({
+      input: item.input,
+      expectedOutput: item.expectedOutput,
+      hidden: item.hidden,
+    })),
+    hints: [],
+    topics: problem.tags ?? [],
   }
 }
 
@@ -276,23 +338,29 @@ function mapCodeReviewResponseToFeedback(
 export default function CodeProblemPage({
   id,
   role = "student",
+  source = "assignment",
 }: {
   id: string
   role?: "student" | "lecturer"
+  source?: "assignment" | "practice"
 }) {
   const router = useRouter()
-  const mockBundle = getAssignmentBundle(id)
-  const hasMockBundle = Boolean(mockBundle.assignment && mockBundle.problem)
+  const isPractice = source === "practice"
+  const mockBundle = !isPractice ? getAssignmentBundle(id) : { assignment: null, problem: null, latestSubmission: null }
+  const hasMockBundle = !isPractice && Boolean(mockBundle.assignment && mockBundle.problem)
   const { data: assignmentContext, isLoading: isLoadingContext } = useGetAssignmentContextQuery(id, {
-    skip: Boolean(mockBundle.assignment && mockBundle.problem),
+    skip: isPractice || Boolean(mockBundle.assignment && mockBundle.problem),
   })
   const { data: assignmentProblem, isLoading: isLoadingProblem } = useGetAssignmentProblemQuery(id, {
-    skip: Boolean(mockBundle.assignment && mockBundle.problem),
+    skip: isPractice || Boolean(mockBundle.assignment && mockBundle.problem),
   })
   const { data: assignmentTestcases = [], isLoading: isLoadingTestcases } =
     useGetAssignmentTestcasesQuery(id, {
-        skip: Boolean(mockBundle.assignment && mockBundle.problem),
+        skip: isPractice || Boolean(mockBundle.assignment && mockBundle.problem),
     })
+  const { data: practiceProblem, isLoading: isLoadingPracticeProblem } = useGetProblemByIdQuery(id, {
+    skip: !isPractice,
+  })
   const {
     data: backendSubmissionHistory = [],
   } = useGetAssignmentSubmissionsQuery(
@@ -300,52 +368,74 @@ export default function CodeProblemPage({
       assignmentId: id,
       scope: role === "student" ? "me" : "all",
     },
-    { skip: hasMockBundle }
+    { skip: hasMockBundle || isPractice }
   )
+  const { data: practiceSubmissionHistory = [] } = useGetProblemSubmissionsQuery(id, {
+    skip: !isPractice,
+  })
   const [judgeExecution] = useJudgeExecutionMutation()
   const [reviewCode] = useReviewCodeMutation()
   const [createSubmission] = useCreateSubmissionMutation()
   const cachedProblem = useMemo(() => getCachedAssignmentProblem(id), [id])
   const assignment = useMemo(
-    () => mockBundle.assignment ?? (assignmentContext ? buildDynamicAssignment(assignmentContext) : null),
-    [assignmentContext, mockBundle.assignment]
+    () =>
+      isPractice
+        ? (practiceProblem ? buildPracticeAssignment(practiceProblem) : null)
+        : mockBundle.assignment ?? (assignmentContext ? buildDynamicAssignment(assignmentContext) : null),
+    [assignmentContext, isPractice, mockBundle.assignment, practiceProblem]
   )
   const problem = useMemo(
     () =>
-      mockBundle.problem ??
-      (assignmentContext
-        ? buildDynamicProblem(
-            assignmentContext,
-            assignmentProblem,
-            assignmentTestcases,
-            cachedProblem
-          )
-        : null),
-    [assignmentContext, assignmentProblem, assignmentTestcases, cachedProblem, mockBundle.problem]
+      isPractice
+        ? (practiceProblem ? buildPracticeProblem(practiceProblem) : null)
+        : mockBundle.problem ??
+          (assignmentContext
+            ? buildDynamicProblem(
+                assignmentContext,
+                assignmentProblem,
+                assignmentTestcases,
+                cachedProblem
+              )
+            : null),
+    [
+      assignmentContext,
+      assignmentProblem,
+      assignmentTestcases,
+      cachedProblem,
+      isPractice,
+      mockBundle.problem,
+      practiceProblem,
+    ]
   )
   const [startedAtMs] = useState(() => Date.now())
-  const [language, setLanguage] = useState<Language>(hasMockBundle ? "python" : "cpp")
+  const language: Language = "cpp"
   const [code, setCode] = useState<string | null>(null)
   const { activeTab, handleTabChange, hasMounted } = useKeepAliveTabs<ActiveTab>("description")
   const [execution, setExecution] = useState<ExecutionSummary | null>(null)
   const [review, setReview] = useState<CodeReviewFeedback | null>(null)
-  const [actionFeedback, setActionFeedback] = useState<string | null>(null)
   const [recommendedProblems, setRecommendedProblems] = useState<
     Awaited<ReturnType<typeof getRecommendedProblems>>
   >([])
   const [runningAction, setRunningAction] = useState<"run" | "submit" | "review" | null>(null)
+  const [leftPaneWidth, setLeftPaneWidth] = useState(DEFAULT_LEFT_PANE_WIDTH)
+  const [isDesktopLayout, setIsDesktopLayout] = useState(false)
+  const { toast } = useToast()
   const submissions = useAppSelector((state) => state.lms.submissions)
-  const availableLanguages = hasMockBundle ? mockLanguages : cppOnlyLanguages
+  const workspaceRef = useRef<HTMLDivElement | null>(null)
+  const dragStateRef = useRef<{ startX: number; startWidth: number } | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
   const timeLimitMinutes =
-    assignmentContext?.timeLimit ??
-    (assignment?.difficulty === "Hard" ? 60 : assignment?.difficulty === "Medium" ? 45 : 30)
+    isPractice
+      ? 0
+      : assignmentContext?.timeLimit ??
+        (assignment?.difficulty === "Hard" ? 60 : assignment?.difficulty === "Medium" ? 45 : 30)
 
   const submissionHistory = useMemo(
     () => submissions.filter((submission) => submission.assignmentId === id),
     [id, submissions]
   )
   const latestSubmission = submissionHistory[0] ?? mockBundle.latestSubmission
-  const latestBackendSubmission = backendSubmissionHistory[0]
+  const latestBackendSubmission = isPractice ? practiceSubmissionHistory[0] : backendSubmissionHistory[0]
   const { data: latestBackendSubmissionDetail } = useGetSubmissionByIdQuery(
     latestBackendSubmission?.submissionId ?? "",
     {
@@ -384,24 +474,85 @@ export default function CodeProblemPage({
     (hasMockBundle
       ? (latestSubmission?.score ?? 0) >= 70
       : Number(latestBackendSubmission?.score ?? 0) >= 70)
-  const activeCode = code ?? (problem ? problem.functionSkeleton[language] ?? "" : "")
+  const activeCode = code ?? (problem ? problem.functionSkeleton.cpp ?? "" : "")
+  const activeProblemId = isPractice ? problem?.id ?? null : assignmentProblem?.id ?? null
 
   const getElapsedSeconds = useCallback(
     () => Math.floor((Date.now() - startedAtMs) / 1000),
     [startedAtMs]
   )
 
-  const handleLanguageChange = useCallback(
-    (nextLanguage: string) => {
-      if (!problem) {
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(min-width: 1280px)")
+    const syncLayoutMode = () => setIsDesktopLayout(mediaQuery.matches)
+
+    syncLayoutMode()
+    mediaQuery.addEventListener("change", syncLayoutMode)
+
+    return () => {
+      mediaQuery.removeEventListener("change", syncLayoutMode)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!isDragging) {
+      return
+    }
+
+    const handlePointerMove = (event: PointerEvent) => {
+      const container = workspaceRef.current
+      const dragState = dragStateRef.current
+
+      if (!container || !dragState) {
         return
       }
 
-      const selectedLanguage = nextLanguage as Language
-      setLanguage(selectedLanguage)
-      setCode(problem.functionSkeleton[selectedLanguage] ?? "")
+      const containerWidth = container.getBoundingClientRect().width
+
+      if (containerWidth <= 0) {
+        return
+      }
+
+      const deltaPercent = ((event.clientX - dragState.startX) / containerWidth) * 100
+      const nextWidth = Math.min(
+        MAX_LEFT_PANE_WIDTH,
+        Math.max(MIN_LEFT_PANE_WIDTH, dragState.startWidth + deltaPercent)
+      )
+
+      setLeftPaneWidth(nextWidth)
+    }
+
+    const handlePointerUp = () => {
+      dragStateRef.current = null
+      setIsDragging(false)
+    }
+
+    const previousCursor = document.body.style.cursor
+    const previousUserSelect = document.body.style.userSelect
+    document.body.style.cursor = "col-resize"
+    document.body.style.userSelect = "none"
+
+    window.addEventListener("pointermove", handlePointerMove)
+    window.addEventListener("pointerup", handlePointerUp)
+
+    return () => {
+      document.body.style.cursor = previousCursor
+      document.body.style.userSelect = previousUserSelect
+      window.removeEventListener("pointermove", handlePointerMove)
+      window.removeEventListener("pointerup", handlePointerUp)
+    }
+  }, [isDragging])
+
+  const handleDividerPointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      dragStateRef.current = {
+        startX: event.clientX,
+        startWidth: leftPaneWidth,
+      }
+      setIsDragging(true)
+      event.preventDefault()
     },
-    [problem]
+    [leftPaneWidth]
   )
 
   const loadReview = useCallback(async () => {
@@ -425,10 +576,10 @@ export default function CodeProblemPage({
       const [reviewResult, recommendations] = await Promise.all([
         hasMockBundle
           ? getAssignmentReview(assignment.id, baseScore, activeCode)
-          : !assignmentProblem?.id
+          : !activeProblemId
             ? Promise.resolve(null)
             : reviewCode({
-              problemId: assignmentProblem.id,
+              problemId: activeProblemId,
               code: activeCode,
               language,
             }).unwrap(),
@@ -457,16 +608,17 @@ export default function CodeProblemPage({
       setRecommendedProblems(recommendations)
       handleTabChange("review")
     } catch (error) {
-      setActionFeedback(
-        error instanceof Error ? error.message : "Không thể lấy AI review từ backend."
-      )
+      toast({
+        tone: "error",
+        description: error instanceof Error ? error.message : "Không thể lấy AI review từ backend.",
+      })
       handleTabChange("result")
     } finally {
       setRunningAction(null)
     }
   }, [
     assignment,
-    assignmentProblem?.id,
+    activeProblemId,
     displayedExecution?.eligibleForReview,
     displayedExecution?.score,
     handleTabChange,
@@ -476,6 +628,7 @@ export default function CodeProblemPage({
     activeCode,
     language,
     reviewCode,
+    toast,
   ])
 
   const handleExecute = useCallback(
@@ -485,7 +638,6 @@ export default function CodeProblemPage({
       }
 
       setRunningAction(mode)
-      setActionFeedback(null)
       let summary: ExecutionSummary
 
       try {
@@ -494,10 +646,10 @@ export default function CodeProblemPage({
             startedAt: new Date(startedAtMs).toISOString(),
             durationSeconds: getElapsedSeconds(),
           })
-        } else if (mode === "run" && assignmentProblem?.id) {
+        } else if (mode === "run" && activeProblemId) {
           try {
             const judgeResult = await judgeExecution({
-              problemId: assignmentProblem.id,
+              problemId: activeProblemId,
               language,
               code: activeCode,
             }).unwrap()
@@ -507,14 +659,18 @@ export default function CodeProblemPage({
             summary = simulateDynamicExecution(assignment, problem!, activeCode, mode)
           }
         } else if (mode === "submit") {
-          if (!assignmentProblem?.id) {
+          const targetProblemId = activeProblemId
+
+          if (!targetProblemId) {
             throw new Error(
-              "Thiếu problemId từ backend nên chưa thể gửi bài thật. Cần kiểm tra lại API /problems/assignment/{assignmentId}."
+              isPractice
+                ? "Thiếu problemId từ backend nên chưa thể nộp bài luyện tập. Cần kiểm tra lại API /problems/{problemId}."
+                : "Thiếu problemId từ backend nên chưa thể gửi bài thật. Cần kiểm tra lại API /problems/assignment/{assignmentId}."
             )
           }
 
           const createdSubmission = await createSubmission({
-            problemId: assignmentProblem.id,
+            problemId: targetProblemId,
             language,
             code: activeCode,
             startedAt: new Date(startedAtMs).toISOString(),
@@ -536,7 +692,13 @@ export default function CodeProblemPage({
           setRecommendedProblems([])
           handleTabChange("result")
           setRunningAction(null)
-          router.push(`/${role}/assignments/${assignment.id}`)
+          toast({
+            tone: "success",
+            description: isPractice ? "Đã lưu lần nộp vào lịch sử luyện tập." : "Đã nộp bài thành công.",
+          })
+          router.push(
+            isPractice ? `/${role}/problem-bank/${targetProblemId}` : `/${role}/assignments/${assignment.id}`
+          )
           return
         } else {
           summary = simulateDynamicExecution(assignment, problem!, activeCode, mode)
@@ -565,15 +727,18 @@ export default function CodeProblemPage({
         setRecommendedProblems([])
         handleTabChange("result")
       } catch (error) {
-        setActionFeedback(error instanceof Error ? error.message : "Không thể thực hiện thao tác này.")
+        toast({
+          tone: "error",
+          description: error instanceof Error ? error.message : "Không thể thực hiện thao tác này.",
+        })
       } finally {
         setRunningAction(null)
       }
     },
     [
       activeCode,
+      activeProblemId,
       assignment,
-      assignmentProblem,
       assignmentTestcases,
       createSubmission,
       execution,
@@ -581,30 +746,31 @@ export default function CodeProblemPage({
       getElapsedSeconds,
       handleTabChange,
       hasMockBundle,
+      isPractice,
       judgeExecution,
       language,
       problem,
       role,
       router,
       startedAtMs,
+      toast,
     ]
   )
+
+  if (
+    (!isPractice && (isLoadingContext || isLoadingProblem || isLoadingTestcases)) ||
+    (isPractice && isLoadingPracticeProblem)
+  ) {
+    return <AttemptWorkspaceSkeleton title="Hệ thống đang chuẩn bị dữ liệu cho màn làm bài." />
+  }
 
   if (!assignment || !problem) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>
-            {isLoadingContext || isLoadingProblem || isLoadingTestcases
-              ? "Đang tải bài tập..."
-              : "Không tìm thấy bài tập"}
-          </CardTitle>
+          <CardTitle>Không tìm thấy bài tập</CardTitle>
         </CardHeader>
-        <CardContent>
-          {isLoadingContext || isLoadingProblem || isLoadingTestcases
-            ? "Hệ thống đang chuẩn bị dữ liệu cho màn làm bài."
-            : "Assignment is unavailable."}
-        </CardContent>
+        <CardContent>Assignment is unavailable.</CardContent>
       </Card>
     )
   }
@@ -614,43 +780,102 @@ export default function CodeProblemPage({
       <AssignmentAttemptHeader
         assignment={assignment}
         problem={problem}
-        backHref={`/${role}/assignments/${assignment.id}`}
+        backHref={isPractice ? `/${role}/problem-bank/${problem.id}` : `/${role}/assignments/${assignment.id}`}
         startedAtMs={startedAtMs}
         timeLimitMinutes={timeLimitMinutes}
+        timerLabel={isPractice ? "Không giới hạn thời gian" : undefined}
         language={language}
-        languages={availableLanguages}
-        onLanguageChange={handleLanguageChange}
       />
 
-      <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
-        <ProblemWorkspaceTabs
-          problem={problem}
-          activeTab={activeTab}
-          onTabChange={handleTabChange}
-          hasMounted={hasMounted}
-          displayedExecution={displayedExecution}
-          review={review}
-          recommendedProblems={recommendedProblems}
-          runningAction={runningAction}
-          canRequestReview={canRequestReview}
-          onLoadReview={loadReview}
-        />
+      {!isDesktopLayout ? (
+        <div className="grid gap-4">
+          <ProblemWorkspaceTabs
+            problem={problem}
+            activeTab={activeTab}
+            onTabChange={handleTabChange}
+            hasMounted={hasMounted}
+            displayedExecution={displayedExecution}
+            review={review}
+            recommendedProblems={recommendedProblems}
+            runningAction={runningAction}
+            canRequestReview={canRequestReview}
+            onLoadReview={loadReview}
+          />
 
-        <EditorWorkspaceCard
-          language={language}
-          code={activeCode}
-          runningAction={runningAction}
-          canRequestReview={canRequestReview}
-          onCodeChange={setCode}
-          onRun={() => handleExecute("run")}
-          onSubmit={() => handleExecute("submit")}
-          onReview={loadReview}
-        />
-      </div>
+          <EditorWorkspaceCard
+            language={language}
+            code={activeCode}
+            review={review}
+            runningAction={runningAction}
+            canRequestReview={canRequestReview}
+            onCodeChange={setCode}
+            onRun={() => handleExecute("run")}
+            onSubmit={() => handleExecute("submit")}
+            onReview={loadReview}
+          />
+        </div>
+      ) : null}
 
-      {actionFeedback ? (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-          {actionFeedback}
+      {isDesktopLayout ? (
+        <div
+          ref={workspaceRef}
+          className={cn(
+            "hidden min-h-[640px] xl:flex xl:items-stretch",
+            isDragging ? "xl:cursor-col-resize" : ""
+          )}
+        >
+          <div
+            className="relative min-w-0 shrink-0"
+            style={{
+              flexBasis: `${leftPaneWidth}%`,
+            }}
+          >
+            <ProblemWorkspaceTabs
+              problem={problem}
+              activeTab={activeTab}
+              onTabChange={handleTabChange}
+              hasMounted={hasMounted}
+              displayedExecution={displayedExecution}
+              review={review}
+              recommendedProblems={recommendedProblems}
+              runningAction={runningAction}
+              canRequestReview={canRequestReview}
+              onLoadReview={loadReview}
+            />
+          </div>
+
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize workspace panels"
+            className="group flex w-5 shrink-0 cursor-col-resize items-center justify-center"
+            onPointerDown={handleDividerPointerDown}
+          >
+            <div className="flex h-full w-full items-center justify-center">
+              <div className="flex h-full w-[3px] items-center justify-center rounded-full bg-slate-200 transition group-hover:bg-[#1488D8]/50">
+                <GripVertical className="size-4 -translate-x-[6.5px] text-slate-400" />
+              </div>
+            </div>
+          </div>
+
+          <div
+            className="relative min-w-0 shrink-0"
+            style={{
+              flexBasis: `${100 - leftPaneWidth}%`,
+            }}
+          >
+            <EditorWorkspaceCard
+              language={language}
+              code={activeCode}
+              review={review}
+              runningAction={runningAction}
+              canRequestReview={canRequestReview}
+              onCodeChange={setCode}
+              onRun={() => handleExecute("run")}
+              onSubmit={() => handleExecute("submit")}
+              onReview={loadReview}
+            />
+          </div>
         </div>
       ) : null}
     </div>

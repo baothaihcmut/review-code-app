@@ -22,6 +22,8 @@ class ExerciseDatabaseSubProcess(BaseSubProcess):
         question_slug TEXT NOT NULL,
         title TEXT NOT NULL,
         content TEXT NOT NULL,
+        sample_test_case TEXT NOT NULL,
+        code_snippet TEXT NOT NULL,
         difficulty TEXT NOT NULL,
         topic_tag_slugs TEXT NOT NULL,
         similar_question_slugs TEXT NOT NULL
@@ -33,6 +35,8 @@ class ExerciseDatabaseSubProcess(BaseSubProcess):
         question_slug TEXT NOT NULL UNIQUE,
         title TEXT NOT NULL,
         content TEXT NOT NULL,
+        sample_test_case TEXT NOT NULL,
+        code_snippet TEXT NOT NULL,
         difficulty TEXT NOT NULL,
         topic_tag_slugs TEXT NOT NULL,
         similar_question_slugs TEXT NOT NULL
@@ -52,10 +56,24 @@ class ExerciseDatabaseSubProcess(BaseSubProcess):
             yield connection
             connection.commit()
         except Exception:
-            connection.rollback()
+            try:
+                if not connection.closed:
+                    connection.rollback()
+            except psycopg.Error:
+                self.logger.warning(
+                    "Skipping rollback because the database connection is already lost",
+                    exc_info=True,
+                )
             raise
         finally:
-            connection.close()
+            try:
+                if not connection.closed:
+                    connection.close()
+            except psycopg.Error:
+                self.logger.warning(
+                    "Failed to close database connection cleanly",
+                    exc_info=True,
+                )
 
     def truncate_tmp_import_exercises(
         self, connection: psycopg.Connection[DictRow]
@@ -76,6 +94,8 @@ class ExerciseDatabaseSubProcess(BaseSubProcess):
                     question_slug,
                     title,
                     content,
+                    sample_test_case,
+                    code_snippet,
                     difficulty,
                     topic_tag_slugs,
                     similar_question_slugs
@@ -84,6 +104,8 @@ class ExerciseDatabaseSubProcess(BaseSubProcess):
                     COALESCE(%(question_slug)s, ''),
                     COALESCE(%(title)s, ''),
                     COALESCE(%(content)s, ''),
+                    COALESCE(%(sample_test_case)s, ''),
+                    COALESCE(%(code_snippet)s, ''),
                     COALESCE(%(difficulty)s, ''),
                     COALESCE(%(topic_tag_slugs)s, '[]'),
                     COALESCE(%(similar_question_slugs)s, '[]')
@@ -102,6 +124,8 @@ class ExerciseDatabaseSubProcess(BaseSubProcess):
                     question_slug,
                     title,
                     content,
+                    sample_test_case,
+                    code_snippet,
                     difficulty,
                     topic_tag_slugs,
                     similar_question_slugs
@@ -113,6 +137,8 @@ class ExerciseDatabaseSubProcess(BaseSubProcess):
                         question_slug,
                         title,
                         content,
+                        sample_test_case,
+                        code_snippet,
                         difficulty,
                         topic_tag_slugs,
                         similar_question_slugs
@@ -140,6 +166,8 @@ class ExerciseDatabaseSubProcess(BaseSubProcess):
                         tmp.question_slug,
                         tmp.title,
                         tmp.content,
+                        tmp.sample_test_case,
+                        tmp.code_snippet,
                         tmp.difficulty,
                         tmp.topic_tag_slugs,
                         COALESCE(
@@ -168,6 +196,8 @@ class ExerciseDatabaseSubProcess(BaseSubProcess):
                         latest.question_slug,
                         latest.title,
                         latest.content,
+                        latest.sample_test_case,
+                        latest.code_snippet,
                         latest.difficulty,
                         latest.topic_tag_slugs,
                         COALESCE(
@@ -195,6 +225,8 @@ class ExerciseDatabaseSubProcess(BaseSubProcess):
                     tmp.question_slug,
                     tmp.title,
                     tmp.content,
+                    tmp.sample_test_case,
+                    tmp.code_snippet,
                     tmp.difficulty,
                     tmp.topic_tag_slugs,
                     tmp.similar_question_slugs
@@ -204,6 +236,8 @@ class ExerciseDatabaseSubProcess(BaseSubProcess):
                 WHERE latest.question_slug IS NULL
                    OR latest.title != tmp.title
                    OR latest.content != tmp.content
+                   OR latest.sample_test_case != tmp.sample_test_case
+                   OR latest.code_snippet != tmp.code_snippet
                    OR latest.difficulty != tmp.difficulty
                    OR latest.topic_tag_slugs != tmp.topic_tag_slugs
                    OR latest.similar_question_slugs != tmp.similar_question_slugs
@@ -224,6 +258,8 @@ class ExerciseDatabaseSubProcess(BaseSubProcess):
                         tmp.question_slug,
                         tmp.title,
                         tmp.content,
+                        tmp.sample_test_case,
+                        tmp.code_snippet,
                         tmp.difficulty,
                         tmp.topic_tag_slugs,
                         COALESCE(
@@ -251,6 +287,8 @@ class ExerciseDatabaseSubProcess(BaseSubProcess):
                         latest.question_slug,
                         latest.title,
                         latest.content,
+                        latest.sample_test_case,
+                        latest.code_snippet,
                         latest.difficulty,
                         latest.topic_tag_slugs,
                         COALESCE(
@@ -277,9 +315,13 @@ class ExerciseDatabaseSubProcess(BaseSubProcess):
                     tmp.question_slug,
                     tmp.title,
                     tmp.content,
+                    tmp.sample_test_case,
+                    tmp.code_snippet,
                     tmp.difficulty,
                     tmp.topic_tag_slugs,
                     tmp.similar_question_slugs,
+                    COALESCE(latest.sample_test_case, '') AS latest_sample_test_case,
+                    COALESCE(latest.code_snippet, '') AS latest_code_snippet,
                     COALESCE(latest.topic_tag_slugs, '[]') AS latest_topic_tag_slugs,
                     COALESCE(
                         latest.similar_question_slugs,
@@ -289,6 +331,8 @@ class ExerciseDatabaseSubProcess(BaseSubProcess):
                         WHEN latest.question_slug IS NULL THEN 'create'
                         WHEN latest.title = tmp.title
                          AND latest.content = tmp.content
+                         AND latest.sample_test_case = tmp.sample_test_case
+                         AND latest.code_snippet = tmp.code_snippet
                          AND latest.difficulty = tmp.difficulty
                          AND latest.topic_tag_slugs = tmp.topic_tag_slugs
                          AND latest.similar_question_slugs = tmp.similar_question_slugs
@@ -300,6 +344,8 @@ class ExerciseDatabaseSubProcess(BaseSubProcess):
                         AND (
                             latest.title != tmp.title
                             OR latest.content != tmp.content
+                            OR latest.sample_test_case != tmp.sample_test_case
+                            OR latest.code_snippet != tmp.code_snippet
                             OR latest.difficulty != tmp.difficulty
                         )
                     ) AS is_change_content,
@@ -335,6 +381,8 @@ class ExerciseDatabaseSubProcess(BaseSubProcess):
                     question_slug,
                     title,
                     content,
+                    sample_test_case,
+                    code_snippet,
                     difficulty,
                     topic_tag_slugs,
                     similar_question_slugs
@@ -344,6 +392,8 @@ class ExerciseDatabaseSubProcess(BaseSubProcess):
                     %(question_slug)s,
                     %(title)s,
                     %(content)s,
+                    %(sample_test_case)s,
+                    %(code_snippet)s,
                     %(difficulty)s,
                     %(topic_tag_slugs)s,
                     %(similar_question_slugs)s
@@ -351,6 +401,8 @@ class ExerciseDatabaseSubProcess(BaseSubProcess):
                 ON CONFLICT(question_slug) DO UPDATE SET
                     title = EXCLUDED.title,
                     content = EXCLUDED.content,
+                    sample_test_case = EXCLUDED.sample_test_case,
+                    code_snippet = EXCLUDED.code_snippet,
                     difficulty = EXCLUDED.difficulty,
                     topic_tag_slugs = EXCLUDED.topic_tag_slugs,
                     similar_question_slugs = EXCLUDED.similar_question_slugs
