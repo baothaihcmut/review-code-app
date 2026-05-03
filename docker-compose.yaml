@@ -57,32 +57,32 @@ services:
     networks:
       - app-network
 
-  leetcode-crawler:
-    build:
-      context: ./leetcode-crawler
-      dockerfile: Dockerfile
-    container_name: leetcode-crawler
-    ports:
-      - "8001:8001"
-    environment:
-      # Database configuration - có thể override từ .env
-      LEETCODE_DB_HOST: ${LEETCODE_DB_HOST:-ep-snowy-tooth-a1bvkkds-pooler.ap-southeast-1.aws.neon.tech}
-      LEETCODE_DB_PORT: ${LEETCODE_DB_PORT:-5432}
-      LEETCODE_DB_NAME: ${LEETCODE_DB_NAME:-leetcode_data}
-      LEETCODE_DB_USER: ${LEETCODE_DB_USER:-neondb_owner}
-      LEETCODE_DB_PASSWORD: ${LEETCODE_DB_PASSWORD:-npg_UorC6bIXy4AD}
-      PYTHONUNBUFFERED: "1"
-    volumes:
-      - ./leetcode-crawler:/app
-    restart: unless-stopped
-    networks:
-      - app-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+  # leetcode-crawler:
+  #   build:
+  #     context: ./leetcode-crawler
+  #     dockerfile: Dockerfile
+  #   container_name: leetcode-crawler
+  #   ports:
+  #     - "8001:8001"
+  #   environment:
+  #     # Database configuration - có thể override từ .env
+  #     LEETCODE_DB_HOST: ${LEETCODE_DB_HOST:-ep-snowy-tooth-a1bvkkds-pooler.ap-southeast-1.aws.neon.tech}
+  #     LEETCODE_DB_PORT: ${LEETCODE_DB_PORT:-5432}
+  #     LEETCODE_DB_NAME: ${LEETCODE_DB_NAME:-leetcode_data}
+  #     LEETCODE_DB_USER: ${LEETCODE_DB_USER:-neondb_owner}
+  #     LEETCODE_DB_PASSWORD: ${LEETCODE_DB_PASSWORD:-npg_UorC6bIXy4AD}
+  #     PYTHONUNBUFFERED: "1"
+  #   volumes:
+  #     - ./leetcode-crawler:/app
+  #   restart: unless-stopped
+  #   networks:
+  #     - app-network
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:8001/api/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 40s
 
   review-agent:
     build: code-review-ai/
