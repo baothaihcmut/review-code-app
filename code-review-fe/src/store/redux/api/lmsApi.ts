@@ -30,6 +30,8 @@ export type TopicAssignmentResponse = {
   timeLimit?: number | null
   maxScore?: number | null
   maxSubmission?: number | null
+  attemptsUsed?: number | null
+  remainingSubmission?: number | null
   tags?: string[] | null
   status: string
 }
@@ -48,6 +50,7 @@ export type ProblemBankApiProblemResponse = {
   tags?: string[] | null
 }
 export type ProblemBankPageQuery = {
+  q?: string
   page?: number
   size?: number
 }
@@ -117,6 +120,7 @@ type CreateAssignmentRequest = {
     description: string
     problemConstraint: string
     starterCodes: Record<string, string>
+    saveToLibrary: boolean
     testcases: Array<{
       input: string
       expectedOutput: string
@@ -138,6 +142,18 @@ type UpdateAssignmentRequest = {
   maxSubmission?: number
   difficulty?: "EASY" | "MEDIUM" | "HARD"
   tags?: string[]
+  problem?: {
+    description: string
+    problemConstraint?: string
+    starterCodes?: Record<string, string>
+    saveToLibrary?: boolean
+    testcases: Array<{
+      input: string
+      expectedOutput: string
+      explanation: string
+      hidden: boolean
+    }>
+  }
 }
 type DeleteAssignmentRequest = {
   classId: string
@@ -153,6 +169,20 @@ type UpdateMaterialRequest = {
 type SaveProblemRequest = {
   id?: string
   payload: Omit<ProblemBankEntry, "id">
+}
+export type LibraryProblemUpsertRequest = {
+  title: string
+  description: string
+  difficulty: string
+  constraints: string
+  starterCodes: Record<string, string>
+  testcases: Array<{
+    input: string
+    expectedOutput: string
+    explanation: string
+    hidden: boolean
+  }>
+  tags: string[]
 }
 type CreateClassRequest = {
   name: string
@@ -243,9 +273,16 @@ export type SubmissionDetailResponse = {
 }
 export type AssignmentProblemResponse = {
   id: string
+  externalId?: string
+  title?: string
   description: string
   problemConstraint: string
+  difficulty?: string
+  type?: string
   functionSkeletons: Record<string, string>
+  testcases?: AssignmentTestcaseResponse[]
+  similarQuestionIds?: string[]
+  tags?: string[]
 }
 export type ProblemDetailResponse = {
   id: string
@@ -289,11 +326,43 @@ export type JudgeExecutionResponse = {
   passedTestcases: number
   totalTestcases: number
   runtime: number
+  errorMessage?: string | null
 }
 export type CodeReviewRequest = {
   problemId: string
   code: string
   language: string
+}
+export type RecommendationRequest = {
+  student_id: string
+  current_exercise_id: string
+}
+export type RecommendationExercise = {
+  exercise_id: string
+  slug: string
+  title: string
+  description: string
+  content: string
+  difficulty: string
+  concept_ids: string[]
+}
+export type RecommendationRoadmapExercise = {
+  priority: number
+  reason: string
+  exercise: RecommendationExercise
+}
+export type RecommendationRoadmapStep = {
+  step: number
+  summary: string
+  target_concepts: string[]
+  exercises: RecommendationRoadmapExercise[]
+}
+export type RecommendationResponse = {
+  student_id: string
+  current_exercise_id: string
+  focus_concept_ids: string[]
+  summary: string
+  roadmap: RecommendationRoadmapStep[]
 }
 export type CodeReviewLineRangeResponse = {
   start: number
@@ -332,6 +401,10 @@ export type CodeReviewResponse = {
   review_id: string
   review_items: CodeReviewItemResponse[]
   scorecard: Record<string, CodeReviewScorecardMetricResponse>
+}
+export type GetProblemReviewsByUserRequest = {
+  problemId: string
+  userId: string
 }
 export type CreateSubmissionRequest = {
   problemId: string
@@ -544,6 +617,13 @@ export const lmsApi = baseApi.injectEndpoints({
         { type: "Assignment" as const, id: assignmentId },
       ],
     }),
+    getAssignmentById: builder.query<TopicAssignmentResponse, string>({
+      query: (assignmentId) => `/assignments/${assignmentId}`,
+      transformResponse: (response: ApiResponse<TopicAssignmentResponse>) => response.data,
+      providesTags: (_result, _error, assignmentId) => [
+        { type: "Assignment" as const, id: assignmentId },
+      ],
+    }),
     getAssignmentSubmissions: builder.query<
       AssignmentSubmissionResponse[],
       GetAssignmentSubmissionsRequest
@@ -632,6 +712,19 @@ export const lmsApi = baseApi.injectEndpoints({
         body,
       }),
       transformResponse: (response: ApiResponse<CodeReviewResponse>) => response.data,
+    }),
+    getRecommendationRoadmap: builder.mutation<RecommendationResponse, RecommendationRequest>({
+      query: (body) => ({
+        url: "/recommendations",
+        method: "POST",
+        body,
+      }),
+      transformResponse: (response: ApiResponse<RecommendationResponse>) => response.data,
+    }),
+    getProblemReviewsByUser: builder.query<CodeReviewResponse[], GetProblemReviewsByUserRequest>({
+      query: ({ problemId, userId }) =>
+        `/reviews/problem/${problemId}/user/${encodeURIComponent(userId)}`,
+      transformResponse: (response: ApiResponse<CodeReviewResponse[]>) => response.data ?? [],
     }),
     createClass: builder.mutation<CreatedClass, CreateClassRequest>({
       query: ({ name, description, image, schedule }) => {
@@ -810,8 +903,9 @@ export const lmsApi = baseApi.injectEndpoints({
     }),
     getProblemBank: builder.query<ProblemBankPageResult, ProblemBankPageQuery | void>({
       query: (params) => ({
-        url: "/problems/library",
+        url: params?.q?.trim() ? "/problems/library/search" : "/problems/library",
         params: {
+          ...(params?.q?.trim() ? { q: params.q.trim() } : {}),
           page: params?.page ?? 0,
           size: params?.size ?? 20,
         },
@@ -1042,6 +1136,7 @@ export const lmsApi = baseApi.injectEndpoints({
           maxSubmission: request.maxSubmission,
           difficulty: request.difficulty,
           tags: request.tags,
+          problem: request.problem,
         },
       }),
       transformResponse: (response: ApiResponse<TopicAssignmentResponse>) => response.data,
@@ -1118,6 +1213,44 @@ export const lmsApi = baseApi.injectEndpoints({
         ...(result ? [{ type: "ProblemBank" as const, id: result.id }] : []),
       ],
     }),
+    createLibraryProblem: builder.mutation<ProblemDetailResponse, LibraryProblemUpsertRequest>({
+      query: (body) => ({
+        url: "/problems/library/manual",
+        method: "POST",
+        body,
+      }),
+      transformResponse: (response: ApiResponse<ProblemDetailResponse>) => response.data,
+      invalidatesTags: (result) => [
+        { type: "ProblemBank" as const, id: "LIST" },
+        ...(result ? [{ type: "ProblemBank" as const, id: result.id }] : []),
+      ],
+    }),
+    updateLibraryProblem: builder.mutation<
+      ProblemDetailResponse,
+      { problemId: string; body: LibraryProblemUpsertRequest }
+    >({
+      query: ({ problemId, body }) => ({
+        url: `/problems/library/${problemId}`,
+        method: "PUT",
+        body,
+      }),
+      transformResponse: (response: ApiResponse<ProblemDetailResponse>) => response.data,
+      invalidatesTags: (_result, _error, { problemId }) => [
+        { type: "ProblemBank" as const, id: "LIST" },
+        { type: "ProblemBank" as const, id: problemId },
+      ],
+    }),
+    deleteLibraryProblem: builder.mutation<void, string>({
+      query: (problemId) => ({
+        url: `/problems/library/${problemId}`,
+        method: "DELETE",
+      }),
+      transformResponse: () => undefined,
+      invalidatesTags: (_result, _error, problemId) => [
+        { type: "ProblemBank" as const, id: "LIST" },
+        { type: "ProblemBank" as const, id: problemId },
+      ],
+    }),
     createSubmission: builder.mutation<AssignmentSubmissionResponse, CreateSubmissionRequest>({
       query: (body) => ({
         url: "/submissions",
@@ -1136,15 +1269,21 @@ export const {
   useGetClassStudentsQuery,
   useGetClassTopicsQuery,
   useGetAssignmentContextQuery,
+  useGetAssignmentByIdQuery,
+  useLazyGetAssignmentByIdQuery,
   useGetAssignmentSubmissionsQuery,
   useGetSubmissionByIdQuery,
   useGetAssignmentProblemQuery,
+  useLazyGetAssignmentProblemQuery,
   useGetProblemByIdQuery,
   useLazyGetProblemByIdQuery,
   useGetAssignmentTestcasesQuery,
+  useLazyGetAssignmentTestcasesQuery,
   useGetProblemSubmissionsQuery,
+  useGetProblemReviewsByUserQuery,
   useJudgeExecutionMutation,
   useReviewCodeMutation,
+  useGetRecommendationRoadmapMutation,
   useCreateClassMutation,
   useUpdateClassMutation,
   useDeleteClassMutation,
@@ -1168,5 +1307,8 @@ export const {
   useUpdateMaterialMutation,
   useDeleteMaterialMutation,
   useSaveProblemMutation,
+  useCreateLibraryProblemMutation,
+  useUpdateLibraryProblemMutation,
+  useDeleteLibraryProblemMutation,
   useCreateSubmissionMutation,
 } = lmsApi

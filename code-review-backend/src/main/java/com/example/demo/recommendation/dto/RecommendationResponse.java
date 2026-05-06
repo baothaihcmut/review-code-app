@@ -21,70 +21,13 @@ public class RecommendationResponse {
 
     private String currentExerciseId;
 
-    private String anchorConcept;
+    @Builder.Default
+    private List<String> focusConceptIds = List.of();
 
-    private String assignedPath;
+    private String summary;
 
-    private String focusConceptId;
-
-    private Integer criticalErrors;
-
-    private Framework framework;
-
-    private GraphSummary graphSummary;
-
-    private ReferenceBlock reasoning;
-
-    private ReferenceBlock roadmapSummary;
-
-    private List<RoadmapStep> roadmap;
-
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
-    public static class Framework {
-        private String riskLevel;
-        private String readinessLevel;
-        private String explanation;
-    }
-
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
-    public static class GraphSummary {
-        private Double currentConceptWeight;
-        private Double bestPathWeight;
-        private Double bestRelatedExerciseWeight;
-        private Double latestReviewImprovementSignal;
-        private Double latestReviewSeverityChange;
-        private Double latestSubmissionImprovementRatio;
-        private Double latestSubmissionRegressionRatio;
-    }
-
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
-    public static class ReferenceBlock {
-        private String content;
-        private List<ReferenceItem> refs;
-    }
-
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
-    public static class ReferenceItem {
-        private String refId;
-        private String content;
-        private String refCategory;
-    }
+    @Builder.Default
+    private List<RoadmapStep> roadmap = List.of();
 
     @Data
     @Builder
@@ -93,6 +36,21 @@ public class RecommendationResponse {
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     public static class RoadmapStep {
         private Integer step;
+        private String summary;
+        @Builder.Default
+        private List<String> targetConcepts = List.of();
+        @Builder.Default
+        private List<RoadmapExercise> exercises = List.of();
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+    public static class RoadmapExercise {
+        private Integer priority;
+        private String reason;
         private Exercise exercise;
     }
 
@@ -103,12 +61,12 @@ public class RecommendationResponse {
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     public static class Exercise {
         private String exerciseId;
+        private String slug;
         private String title;
         private String description;
         private String content;
         private String difficulty;
-        private List<String> tags;
-        private List<String> conceptIds;
-        private String directive;
+        @Builder.Default
+        private List<String> conceptIds = List.of();
     }
 }

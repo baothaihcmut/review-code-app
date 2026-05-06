@@ -1,8 +1,11 @@
 package com.example.demo.assignment.service;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
@@ -10,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 
 import com.example.demo.assignment.dto.CreateAssignmentRequest;
 import com.example.demo.assignment.dto.UpdateAssignmentRequest;
+import com.example.demo.assignment.dto.AssignmentDeadlineResponse;
 import com.example.demo.assignment.dto.AssignmentDetailResponse;
 import com.example.demo.assignment.dto.AssignmentOverviewResponse;
 import com.example.demo.assignment.dto.AssignmentResponse;
@@ -22,11 +26,16 @@ import com.example.demo.assignment.repository.AssignmentRepository;
 import com.example.demo.common.exception.AppException;
 import com.example.demo.common.exception.ErrorCode;
 import com.example.demo.problem.dto.CreateProblemRequest;
+import com.example.demo.problem.dto.TestcaseDto;
 import com.example.demo.problem.entity.Problem;
 import com.example.demo.problem.entity.ProblemType;
+import com.example.demo.problem.entity.Testcase;
 import com.example.demo.problem.repository.ProblemRepository;
+import com.example.demo.problem.repository.TestcaseRepository;
 import com.example.demo.problem.dto.ProblemResponse;
 import com.example.demo.problem.service.ProblemService;
+import com.example.demo.submission.repository.SubmissionRepository;
+import com.example.demo.topic.entity.Topic;
 import com.example.demo.topic.repository.TopicRepository;
 
 @Service
@@ -36,7 +45,9 @@ public class AssignmentServiceImpl implements AssignmentService {
     private final AssignmentRepository assignmentRepository;
     private final AssignmentProblemRepository assignmentProblemRepository;
     private final ProblemRepository problemRepository;
+    private final TestcaseRepository testcaseRepository;
     private final ProblemService problemService;
+    private final SubmissionRepository submissionRepository;
     private final AssignmentMapper assignmentMapper;
     private final TopicRepository topicRepository;
 
@@ -75,6 +86,7 @@ public class AssignmentServiceImpl implements AssignmentService {
                         .testcases(problemReq.getTestcases())
                         .title(assignment.getTitle())
                         .difficulty(assignment.getDifficulty().toString())
+                        .saveToLibrary(problemReq.isSaveToLibrary())
                         .build()
         );
 
@@ -89,7 +101,7 @@ public class AssignmentServiceImpl implements AssignmentService {
     }
 
     @Override
-    public List<AssignmentOverviewResponse> getAssignmentsByTopic(UUID topicId) {
+    public List<AssignmentOverviewResponse> getAssignmentsByTopic(UUID topicId, UUID userId) {
         topicRepository.findByIdAndDeletedAtIsNull(topicId)
                 .orElseThrow(() -> new AppException(ErrorCode.TOPIC_NOT_FOUND));
 
@@ -100,8 +112,25 @@ public class AssignmentServiceImpl implements AssignmentService {
     }
 
     @Override
-    public AssignmentDetailResponse getAssignmentById(UUID assignmentId) {
-        return mapAssignmentDetail(getActiveAssignment(assignmentId));
+    public List<AssignmentDeadlineResponse> getAssignmentDeadlines() {
+        List<Assignment> assignments = assignmentRepository.findByDeletedAtIsNullOrderByDeadlineAsc();
+
+        Map<UUID, Topic> topicsById = topicRepository.findAllById(
+                assignments.stream()
+                        .map(Assignment::getTopicId)
+                        .distinct()
+                        .toList())
+                .stream()
+                .collect(Collectors.toMap(Topic::getId, Function.identity()));
+
+        return assignments.stream()
+                .map(assignment -> mapAssignmentDeadline(assignment, topicsById.get(assignment.getTopicId())))
+                .toList();
+    }
+
+    @Override
+    public AssignmentDetailResponse getAssignmentById(UUID assignmentId, UUID userId) {
+        return mapAssignmentDetail(getActiveAssignment(assignmentId), userId);
     }
 
     @Override
@@ -122,6 +151,12 @@ public class AssignmentServiceImpl implements AssignmentService {
     }
 
     private AssignmentResponse mapAssignment(Assignment assignment) {
+        return mapAssignment(assignment, null);
+    }
+
+    private AssignmentResponse mapAssignment(Assignment assignment, UUID userId) {
+        Integer attemptsUsed = resolveAttemptsUsed(assignment, userId);
+        Integer remainingSubmission = resolveRemainingSubmission(assignment, attemptsUsed);
         return AssignmentResponse.builder()
                 .id(assignment.getId())
                 .title(assignment.getTitle())
@@ -131,6 +166,8 @@ public class AssignmentServiceImpl implements AssignmentService {
                 .timeLimit(assignment.getTimeLimit())
                 .maxScore(assignment.getMaxScore())
                 .maxSubmission(assignment.getMaxSubmission())
+                .attemptsUsed(attemptsUsed)
+                .remainingSubmission(remainingSubmission)
                 .tags(assignment.getTags())
                 .status(assignment.getStatus())
                 .build();
@@ -143,7 +180,22 @@ public class AssignmentServiceImpl implements AssignmentService {
                 .build();
     }
 
-    private AssignmentDetailResponse mapAssignmentDetail(Assignment assignment) {
+    private AssignmentDeadlineResponse mapAssignmentDeadline(Assignment assignment, Topic topic) {
+        return AssignmentDeadlineResponse.builder()
+                .id(assignment.getId())
+                .topicId(assignment.getTopicId())
+                .topicTitle(topic != null ? topic.getTitle() : null)
+                .title(assignment.getTitle())
+                .startTime(assignment.getStartTime())
+                .deadline(assignment.getDeadline())
+                .difficulty(assignment.getDifficulty())
+                .status(assignment.getStatus())
+                .build();
+    }
+
+    private AssignmentDetailResponse mapAssignmentDetail(Assignment assignment, UUID userId) {
+        Integer attemptsUsed = resolveAttemptsUsed(assignment, userId);
+        Integer remainingSubmission = resolveRemainingSubmission(assignment, attemptsUsed);
         return AssignmentDetailResponse.builder()
                 .id(assignment.getId())
                 .title(assignment.getTitle())
@@ -153,6 +205,8 @@ public class AssignmentServiceImpl implements AssignmentService {
                 .timeLimit(assignment.getTimeLimit())
                 .maxScore(assignment.getMaxScore())
                 .maxSubmission(assignment.getMaxSubmission())
+                .attemptsUsed(attemptsUsed)
+                .remainingSubmission(remainingSubmission)
                 .tags(assignment.getTags())
                 .status(assignment.getStatus())
                 .build();
@@ -186,11 +240,13 @@ public class AssignmentServiceImpl implements AssignmentService {
             throw new AppException(ErrorCode.VALIDATION_ERROR);
         }
 
-        if (!assignmentProblemRepository.existsByAssignmentIdAndProblemId(assignmentId, problemId)) {
+        ProblemResponse clonedProblem = cloneLibraryProblemForAssignment(assignment, problem);
+
+        if (!assignmentProblemRepository.existsByAssignmentIdAndProblemId(assignmentId, clonedProblem.getId())) {
             assignmentProblemRepository.save(
                     AssignmentProblem.builder()
                             .assignmentId(assignmentId)
-                            .problemId(problemId)
+                            .problemId(clonedProblem.getId())
                             .build()
             );
         }
@@ -208,5 +264,50 @@ public class AssignmentServiceImpl implements AssignmentService {
     private Assignment getActiveAssignment(UUID assignmentId) {
         return assignmentRepository.findByIdAndDeletedAtIsNull(assignmentId)
                 .orElseThrow(() -> new AppException(ErrorCode.ASSIGNMENT_NOT_FOUND));
+    }
+
+    private Integer resolveAttemptsUsed(Assignment assignment, UUID userId) {
+        if (userId == null) {
+            return null;
+        }
+        return Math.toIntExact(submissionRepository.countByUserIdAndAssignmentId(userId, assignment.getId()));
+    }
+
+    private Integer resolveRemainingSubmission(Assignment assignment, Integer attemptsUsed) {
+        if (attemptsUsed == null) {
+            return null;
+        }
+        int maxSubmission = assignment.getMaxSubmission();
+        if (maxSubmission <= 0) {
+            return null;
+        }
+        return Math.max(maxSubmission - attemptsUsed, 0);
+    }
+
+    private ProblemResponse cloneLibraryProblemForAssignment(Assignment assignment, Problem libraryProblem) {
+        List<TestcaseDto> clonedTestcases = testcaseRepository.findByProblemId(libraryProblem.getId()).stream()
+                .map(this::toTestcaseDto)
+                .toList();
+
+        return problemService.createManualProblem(
+                CreateProblemRequest.builder()
+                        .title(libraryProblem.getTitle())
+                        .description(libraryProblem.getDescription())
+                        .difficulty(libraryProblem.getDifficulty())
+                        .assignmentId(assignment.getId())
+                        .problemConstraint(libraryProblem.getProblemConstraint())
+                        .starterCodes(libraryProblem.getStarterCodes())
+                        .testcases(clonedTestcases)
+                        .saveToLibrary(false)
+                        .build());
+    }
+
+    private TestcaseDto toTestcaseDto(Testcase testcase) {
+        return TestcaseDto.builder()
+                .input(testcase.getInput())
+                .expectedOutput(testcase.getExpectedOutput())
+                .isHidden(testcase.isHidden())
+                .explanation(testcase.getExplanation())
+                .build();
     }
 }

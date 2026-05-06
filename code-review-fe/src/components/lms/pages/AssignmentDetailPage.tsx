@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
+  useGetAssignmentByIdQuery,
   useGetAssignmentContextQuery,
   useGetAssignmentSubmissionsQuery,
 } from "@/store/redux/api/lmsApi"
@@ -112,6 +113,21 @@ function formatSubmissionScore(score: string, maxScore?: number | null) {
   return `${formattedScore} trên ${formattedMaxScore} (${percentage}%)`
 }
 
+function formatAttemptLimit(value?: number | null) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return "Không giới hạn"
+  }
+
+  return `${value}`
+}
+
+function formatDifficultyLabel(value: string) {
+  if (value === "EASY") return "Dễ"
+  if (value === "MEDIUM") return "Trung bình"
+  if (value === "HARD") return "Khó"
+  return value
+}
+
 export default function AssignmentDetailPage({
   id,
   role = "student",
@@ -119,7 +135,8 @@ export default function AssignmentDetailPage({
   id: string
   role?: UserRole
 }) {
-  const { data: assignment, error, isLoading } = useGetAssignmentContextQuery(id)
+  const { data: assignment, error, isLoading } = useGetAssignmentByIdQuery(id)
+  const { data: assignmentContext } = useGetAssignmentContextQuery(id)
   const {
     data: submissions = [],
     isLoading: isLoadingSubmissions,
@@ -142,10 +159,11 @@ export default function AssignmentDetailPage({
     )
   }
 
-  const backHref =
-    role === "student"
-      ? `/student/courses/${assignment.classId}`
-      : `/lecturer/courses/${assignment.classId}`
+  const backHref = assignmentContext?.classId
+    ? `/${role}/courses/${assignmentContext.classId}`
+    : role === "student"
+      ? "/student/courses"
+      : "/lecturer/courses"
   const attemptHref =
     role === "student"
       ? `/student/assignments/${assignment.id}/attempt`
@@ -164,17 +182,27 @@ export default function AssignmentDetailPage({
 
     return rightTime - leftTime
   })
-  const attemptsUsed = submissions.length
-  const attemptsAllowed = assignment.maxSubmission ?? 0
-  const attemptsLeft = attemptsAllowed > 0 ? Math.max(attemptsAllowed - attemptsUsed, 0) : null
+  const attemptsUsed =
+    typeof assignment.attemptsUsed === "number" && Number.isFinite(assignment.attemptsUsed)
+      ? assignment.attemptsUsed
+      : submissions.length
+  const attemptsAllowed =
+    typeof assignment.maxSubmission === "number" && Number.isFinite(assignment.maxSubmission)
+      ? assignment.maxSubmission
+      : null
+  const attemptsLeft =
+    typeof assignment.remainingSubmission === "number" && Number.isFinite(assignment.remainingSubmission)
+      ? assignment.remainingSubmission
+      : attemptsAllowed === null
+        ? null
+        : Math.max(attemptsAllowed - attemptsUsed, 0)
+  const canStartAttempt = attemptsLeft === null || attemptsLeft > 0
 
   return (
     <div className="space-y-6">
       <div className="rounded-3xl border border-[#030391]/10 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center gap-3">
-          <Badge className="bg-[#030391] text-white">{assignment.className}</Badge>
-          <Badge variant="outline">{assignment.topicTitle}</Badge>
-          <Badge variant="outline">{assignment.difficulty}</Badge>
+          <Badge variant="outline">{formatDifficultyLabel(assignment.difficulty)}</Badge>
           <Badge variant="outline">{formatScore(assignment.maxScore)}</Badge>
           {(assignment.tags ?? []).map((tag) => (
             <Badge key={tag} className="bg-[#E3F2FD] text-[#030391] hover:bg-[#E3F2FD]">
@@ -202,7 +230,7 @@ export default function AssignmentDetailPage({
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <p className="text-sm font-semibold text-slate-500">Số lần nộp tối đa</p>
-                <p className="mt-1 text-lg text-slate-900">{attemptsAllowed || "Không giới hạn"}</p>
+                <p className="mt-1 text-lg text-slate-900">{formatAttemptLimit(attemptsAllowed)}</p>
               </div>
               <div>
                 <p className="text-sm font-semibold text-slate-500">Còn lại</p>
@@ -211,7 +239,7 @@ export default function AssignmentDetailPage({
                 </p>
               </div>
               <div>
-                <p className="text-sm font-semibold text-slate-500">Time limit</p>
+                <p className="text-sm font-semibold text-slate-500">Giới hạn thời gian</p>
                 <p className="mt-1 text-lg text-slate-900">{formatTimeLimit(assignment.timeLimit)}</p>
               </div>
               <div>
@@ -234,11 +262,18 @@ export default function AssignmentDetailPage({
                 ? `Đã có ${attemptsUsed} lần nộp ${role === "lecturer" ? "trong lớp này" : "của bạn"}.`
                 : "Chưa có lịch sử nộp bài."}
             </p>
+            {!canStartAttempt ? (
+              <p className="mt-2 text-sm font-medium text-rose-600">
+                Đã hết số lượt làm bài.
+              </p>
+            ) : null}
 
             <div className="mt-6 flex flex-wrap gap-3">
-              <Button asChild className="rounded-2xl bg-[#030391] px-6 text-white hover:bg-[#030391]/90">
-                <Link href={attemptHref}>Bắt đầu</Link>
-              </Button>
+              {canStartAttempt ? (
+                <Button asChild className="rounded-2xl bg-[#030391] px-6 text-white hover:bg-[#030391]/90">
+                  <Link href={attemptHref}>Bắt đầu</Link>
+                </Button>
+              ) : null}
               <Link href={backHref}>
                 <Button variant="outline" className="rounded-2xl">
                   Quay lại khóa học

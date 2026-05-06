@@ -33,6 +33,8 @@ export type ExecutionSummary = {
   score: number
   results: ExecutionTestResult[]
   eligibleForReview: boolean
+  status?: string
+  errorMessage?: string | null
 }
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))

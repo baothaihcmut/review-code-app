@@ -3,9 +3,11 @@
 import Editor from "@monaco-editor/react";
 import { Streamdown } from "streamdown";
 
+import DateTimePicker from "@/components/lms/DateTimePicker";
 import TestCaseManager from "@/components/lms/TestCaseManager";
 import type { AssignmentDraft } from "@/components/lms/pages/lecturer-course-detail/types";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import {
   Tabs,
@@ -171,12 +173,16 @@ function MarkdownEditorField({
 export default function AssignmentDraftModalForm({
   draft,
   isSubmitting,
+  submitLabel = "Lưu assignment",
+  submittingLabel = "Đang tạo...",
   onChange,
   onCancel,
   onSave,
 }: {
   draft: AssignmentDraft;
   isSubmitting: boolean;
+  submitLabel?: string;
+  submittingLabel?: string;
   onChange: (patch: Partial<AssignmentDraft>) => void;
   onCancel: () => void;
   onSave: () => void;
@@ -217,6 +223,27 @@ export default function AssignmentDraftModalForm({
         />
       </FieldBlock>
 
+      <div className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3">
+        <label className="flex cursor-pointer items-start gap-3">
+          <Checkbox
+            checked={draft.saveToLibrary}
+            onCheckedChange={(checked) =>
+              onChange({ saveToLibrary: checked === true })
+            }
+            className="mt-0.5"
+          />
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-slate-800">
+              Lưu vào kho bài tập
+            </p>
+            <p className="text-xs text-slate-500">
+              Khi bật, bài toán gốc của assignment sẽ được lưu thêm vào problem
+              library để tái sử dụng sau này.
+            </p>
+          </div>
+        </label>
+      </div>
+
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <FieldBlock label="Điểm số tối đa">
           <Input
@@ -238,7 +265,6 @@ export default function AssignmentDraftModalForm({
         </FieldBlock>
         <FieldBlock
           label="Time limit (phút)"
-          hint="Số phút tối đa cho một lần làm bài."
         >
           <Input
             type="number"
@@ -262,24 +288,23 @@ export default function AssignmentDraftModalForm({
 
       <div className="grid gap-4 md:grid-cols-2">
         <FieldBlock label="Thời điểm mở">
-          <Input
-            type="datetime-local"
+          <DateTimePicker
             value={draft.openAt}
-            onChange={(event) => onChange({ openAt: event.target.value })}
+            placeholder="Chọn ngày giờ mở bài"
+            onChange={(value) => onChange({ openAt: value })}
           />
         </FieldBlock>
         <FieldBlock label="Hạn nộp">
-          <Input
-            type="datetime-local"
+          <DateTimePicker
             value={draft.deadline}
-            onChange={(event) => onChange({ deadline: event.target.value })}
+            placeholder="Chọn hạn nộp"
+            onChange={(value) => onChange({ deadline: value })}
           />
         </FieldBlock>
       </div>
 
       <FieldBlock
         label="Ràng buộc"
-        hint="Hỗ trợ markdown hoặc HTML từ đề bài nguồn, ví dụ danh sách ul/li, code inline."
       >
         <MarkdownEditorField
           rows={6}
@@ -342,7 +367,7 @@ export default function AssignmentDraftModalForm({
           Hủy
         </Button>
         <Button onClick={onSave} disabled={isSubmitting}>
-          {isSubmitting ? "Đang tạo..." : "Lưu assignment"}
+          {isSubmitting ? submittingLabel : submitLabel}
         </Button>
       </div>
     </div>

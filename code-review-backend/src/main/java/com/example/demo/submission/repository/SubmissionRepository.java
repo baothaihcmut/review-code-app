@@ -67,6 +67,7 @@ public interface SubmissionRepository
     @Query(value = """
         SELECT new com.example.demo.submission.dto.SubmissionResponse(
             s.id,
+            s.userId,
             s.status,
             a.createdAt,
             s.submittedAt,
@@ -86,6 +87,7 @@ public interface SubmissionRepository
         @Query(value = """
             SELECT new com.example.demo.submission.dto.SubmissionResponse(
                 s.id,
+                s.userId,
                 s.status,
                 a.createdAt,
                 s.submittedAt,
@@ -109,5 +111,21 @@ public interface SubmissionRepository
         WHERE s.userId = :userId AND p.id = :problemId
     """)
     List<Submission> getAllSubmissionsByProblemIdAndUserId(UUID userId, UUID problemId);
+
+    @Query(value = """
+        SELECT COUNT(s)
+        FROM Submission s
+        JOIN AssignmentProblem ap ON ap.problemId = s.problemId
+        WHERE s.userId = :userId AND ap.assignmentId = :assignmentId
+    """)
+    long countByUserIdAndAssignmentId(UUID userId, UUID assignmentId);
+
+    @Query("""
+        SELECT DISTINCT s.problemId
+        FROM Submission s
+        WHERE s.userId = :userId
+        ORDER BY s.problemId
+    """)
+    List<UUID> findDistinctProblemIdsByUserId(UUID userId);
 
 }
