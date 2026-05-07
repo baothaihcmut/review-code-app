@@ -61,12 +61,13 @@ type DynamicTestcase = {
   hidden: boolean
 }
 
-const DEFAULT_LEFT_PANE_WIDTH = 52
+const DEFAULT_LEFT_PANE_WIDTH = 50
 const MIN_LEFT_PANE_WIDTH = 28
 const MAX_LEFT_PANE_WIDTH = 72
+const REVIEW_ELIGIBILITY_PERCENT = 30
 
 function toSubmissionStatus(score: number): "submitted" | "reviewed" {
-  return score >= 70 ? "reviewed" : "submitted"
+  return score >= REVIEW_ELIGIBILITY_PERCENT ? "reviewed" : "submitted"
 }
 
 function buildDynamicAssignment(context: NonNullable<ReturnType<typeof useGetAssignmentContextQuery>["data"]>): Assignment {
@@ -211,7 +212,7 @@ function simulateDynamicExecution(
     total,
     percentage,
     score,
-    eligibleForReview: percentage >= 70,
+    eligibleForReview: percentage >= REVIEW_ELIGIBILITY_PERCENT,
     results: safeCases.map((testCase, index) => ({
       idx: index + 1,
       input: testCase.input,
@@ -241,7 +242,7 @@ function mapJudgeExecutionToSummary(
     total,
     percentage,
     score: Math.round(((assignment.points || 100) * percentage) / 100),
-    eligibleForReview: percentage >= 70,
+    eligibleForReview: percentage >= REVIEW_ELIGIBILITY_PERCENT,
     status: judgeResult.status,
     errorMessage: judgeResult.errorMessage ?? null,
     results: hasCompileError
@@ -271,7 +272,7 @@ function mapSubmissionDetailToSummary(
     total,
     percentage,
     score: Number.isFinite(numericScore) ? numericScore : 0,
-    eligibleForReview: percentage >= 70,
+    eligibleForReview: percentage >= REVIEW_ELIGIBILITY_PERCENT,
     results: detail.testcaseResults.map((item) => ({
       idx: item.index,
       input: item.input,
@@ -455,7 +456,7 @@ export default function CodeProblemPage({
           percentage: Math.round((latestSubmission.passed / latestSubmission.total) * 100),
           score: latestSubmission.score,
           results: latestSubmission.testResults,
-          eligibleForReview: latestSubmission.score >= 70,
+          eligibleForReview: latestSubmission.score >= REVIEW_ELIGIBILITY_PERCENT,
         }
       }
 
@@ -475,8 +476,8 @@ export default function CodeProblemPage({
   const canRequestReview =
     (displayedExecution?.eligibleForReview ?? false) ||
     (hasMockBundle
-      ? (latestSubmission?.score ?? 0) >= 70
-      : Number(latestBackendSubmission?.score ?? 0) >= 70)
+      ? (latestSubmission?.score ?? 0) >= REVIEW_ELIGIBILITY_PERCENT
+      : Number(latestBackendSubmission?.score ?? 0) >= REVIEW_ELIGIBILITY_PERCENT)
   const activeCode = code ?? (problem ? problem.functionSkeleton.cpp ?? "" : "")
   const activeProblemId = problem?.id ?? null
 
@@ -568,7 +569,7 @@ export default function CodeProblemPage({
       (hasMockBundle ? latestSubmission?.score : Number(latestBackendSubmission?.score ?? 0)) ??
       0
 
-    if (!displayedExecution?.eligibleForReview && baseScore < 70) {
+    if (!displayedExecution?.eligibleForReview && baseScore < REVIEW_ELIGIBILITY_PERCENT) {
       handleTabChange("result")
       return
     }
@@ -729,7 +730,10 @@ export default function CodeProblemPage({
             ...summary,
             score: Number.isFinite(nextScore) ? nextScore : summary.score,
             eligibleForReview:
-              summary.eligibleForReview || (Number.isFinite(nextScore) ? nextScore >= 70 : false),
+              summary.eligibleForReview ||
+              (Number.isFinite(nextScore)
+                ? nextScore >= REVIEW_ELIGIBILITY_PERCENT
+                : false),
           })
           setReview(null)
           setRecommendationRoadmap(null)

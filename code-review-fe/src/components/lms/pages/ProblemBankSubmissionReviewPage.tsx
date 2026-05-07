@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 
 import { AttemptWorkspaceSkeleton } from "@/components/lms/LmsLoadingStates"
 import type { UserRole } from "@/data/lms/extendedMockData"
@@ -17,8 +17,10 @@ import {
   type AssignmentSubmissionResponse,
   type CodeReviewResponse,
   type ProblemDetailResponse,
+  type RecommendationResponse,
   type SubmissionDetailResponse,
   useGetProblemByIdQuery,
+  useGetRecommendationHistoryByProblemQuery,
   useGetProblemReviewsByUserQuery,
   useGetProblemSubmissionsQuery,
   useGetSubmissionByIdQuery,
@@ -149,6 +151,7 @@ export default function ProblemBankSubmissionReviewPage({
 }) {
   const { activeTab, handleTabChange, hasMounted } = useKeepAliveTabs<ActiveTab>("description")
   const currentUserId = useAppSelector((state) => state.auth.user?.id ?? "")
+  const [isRecommendationDialogOpen, setIsRecommendationDialogOpen] = useState(false)
   const { data: problem, isLoading: isLoadingProblem, error: problemError } =
     useGetProblemByIdQuery(problemId)
   const {
@@ -166,6 +169,10 @@ export default function ProblemBankSubmissionReviewPage({
       skip: !problemId || !currentUserId,
     }
   )
+  const { data: recommendationHistory = [], isLoading: isLoadingRecommendationHistory } =
+    useGetRecommendationHistoryByProblemQuery(problemId, {
+      skip: !problemId,
+    })
 
   const submission = submissions.find((item) => item.submissionId === submissionId)
   const assignment = useMemo(() => (problem ? buildReviewAssignment(problem) : null), [problem])
@@ -180,10 +187,23 @@ export default function ProblemBankSubmissionReviewPage({
     () => (latestReview ? mapCodeReviewResponseToFeedback(problemId, latestReview) : null),
     [latestReview, problemId]
   )
+  const latestRecommendation = useMemo<RecommendationResponse | null>(
+    () =>
+      recommendationHistory.length > 0
+        ? recommendationHistory[recommendationHistory.length - 1].recommendation
+        : null,
+    [recommendationHistory]
+  )
   const code = submissionDetail?.code ?? ""
   const language = submissionDetail?.language ?? "cpp"
 
-  if (isLoadingProblem || isLoadingSubmissions || isLoadingDetail || isLoadingReviews) {
+  if (
+    isLoadingProblem ||
+    isLoadingSubmissions ||
+    isLoadingDetail ||
+    isLoadingReviews ||
+    isLoadingRecommendationHistory
+  ) {
     return <AttemptWorkspaceSkeleton title="Đang tải bài làm đã nộp..." />
   }
 
@@ -214,7 +234,7 @@ export default function ProblemBankSubmissionReviewPage({
         onLanguageChange={() => {}}
       />
 
-      <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
         <ProblemWorkspaceTabs
           problem={reviewProblem}
           activeTab={activeTab}
@@ -222,14 +242,19 @@ export default function ProblemBankSubmissionReviewPage({
           hasMounted={hasMounted}
           displayedExecution={execution}
           review={review}
-          recommendationRoadmap={null}
+          // recommendationRoadmap={null}
+          // role={role}
+          // isRecommendationLoading={false}
+          // isRecommendationDialogOpen={false}
+          // onRecommendationDialogOpenChange={() => {}}
+          recommendationRoadmap={latestRecommendation}
           role={role}
           isRecommendationLoading={false}
-          isRecommendationDialogOpen={false}
-          onRecommendationDialogOpenChange={() => {}}
+          isRecommendationDialogOpen={isRecommendationDialogOpen}
           runningAction={null}
           canRequestReview={false}
           onLoadReview={() => {}}
+          onRecommendationDialogOpenChange={setIsRecommendationDialogOpen}
           reviewEmptyMessage="Không có review cho bài làm này."
           showExamplesSection={false}
         />
