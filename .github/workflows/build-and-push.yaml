@@ -69,17 +69,14 @@ jobs:
           
           case $SERVICE in
             backend)
-              DOCKERFILE="code-review-backend/Dockerfile"
               BUILD_CONTEXT="code-review-backend"
               IMAGE_NAME="code-review-backend"
               ;;
             review-agent)
-              DOCKERFILE="code-review-ai/Dockerfile"
               BUILD_CONTEXT="code-review-ai"
               IMAGE_NAME="review-agent"
               ;;
             frontend)
-              DOCKERFILE="code-review-fe/Dockerfile"
               BUILD_CONTEXT="code-review-fe"
               IMAGE_NAME="code-review-frontend"
               ;;
@@ -89,7 +86,6 @@ jobs:
               ;;
           esac
           
-          echo "dockerfile=$DOCKERFILE" >> $GITHUB_OUTPUT
           echo "build_context=$BUILD_CONTEXT" >> $GITHUB_OUTPUT
           echo "image_name=$IMAGE_NAME" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
@@ -99,7 +95,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: ${{ steps.service-info.outputs.build_context }}
-          file: ${{ steps.service-info.outputs.dockerfile }}
+          file: Dockerfile
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ steps.service-info.outputs.image_name }}:${{ steps.service-info.outputs.version }}
