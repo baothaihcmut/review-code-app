@@ -91,7 +91,17 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "service=$SERVICE" >> $GITHUB_OUTPUT
 
-      - name: Build and push Docker image
+      - name: Build Docker image (no cache)
+        uses: docker/build-push-action@v4
+        with:
+          context: ${{ steps.service-info.outputs.build_context }}
+          file: ${{ steps.service-info.outputs.build_context }}/Dockerfile
+          push: false
+          load: true
+          tags: ${{ env.REGISTRY }}/${{ steps.service-info.outputs.image_name }}:${{ steps.service-info.outputs.version }}
+          no-cache: true
+
+      - name: Push Docker image to ACR
         uses: docker/build-push-action@v4
         with:
           context: ${{ steps.service-info.outputs.build_context }}
