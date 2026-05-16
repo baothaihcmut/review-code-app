@@ -4,5 +4,5 @@ resource "azurerm_container_registry" "this" {
   location            = var.location
 
   sku           = "Basic"
-  admin_enabled = false
+  admin_enabled = true
 }
