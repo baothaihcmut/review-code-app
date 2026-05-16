@@ -19,10 +19,15 @@ on:
         description: 'Version tag (e.g., 1.0.0)'
         required: true
         type: string
+      force_tag:
+        description: 'Force overwrite existing tag'
+        required: false
+        default: false
+        type: boolean
 
 env:
-  REGISTRY: ${{ secrets.ACR_REGISTRY_NAME }}.azurecr.io
-  ACR_REGISTRY_NAME: ${{ secrets.ACR_REGISTRY_NAME }}
+  REGISTRY: reviewcodeappdevacr.azurecr.io
+  ACR_REGISTRY_NAME: reviewcodeappdevacr
 
 jobs:
   build-and-push:
@@ -109,18 +114,25 @@ jobs:
           SERVICE=${{ steps.service-info.outputs.service }}
           VERSION=${{ steps.service-info.outputs.version }}
           TAG="${SERVICE}-${VERSION}"
+          FORCE_FLAG=""
           
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           
-          # Check if tag already exists
-          if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "Tag $TAG already exists"
-            exit 0
+          # Check if should force overwrite
+          if [[ "${{ github.event.inputs.force_tag }}" == "true" ]]; then
+            FORCE_FLAG="--force"
+            echo "⚠️ Force overwriting tag: $TAG"
+          else
+            # Check if tag already exists
+            if git rev-parse "$TAG" >/dev/null 2>&1; then
+              echo "❌ Tag $TAG already exists. Use force_tag=true to overwrite"
+              exit 1
+            fi
           fi
           
-          git tag -a "$TAG" -m "Release $SERVICE version $VERSION"
-          git push origin "$TAG"
+          git tag -a $FORCE_FLAG "$TAG" -m "Release $SERVICE version $VERSION"
+          git push origin $FORCE_FLAG "$TAG"
 
       - name: Print summary
         run: |
