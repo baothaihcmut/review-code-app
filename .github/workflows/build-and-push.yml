@@ -1,6 +1,9 @@
 name: Build and Push (CI)
 
 on:
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
     inputs:
       service:
@@ -49,8 +52,16 @@ jobs:
       - name: Extract service info
         id: service-info
         run: |
-          SERVICE=${{ github.event.inputs.service }}
-          VERSION=${{ github.event.inputs.version }}
+          # Determine if triggered by tag push or manual dispatch
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            TAG=${{ github.ref_name }}
+            # Parse tag format: backend-1.0.0 or similar
+            SERVICE=$(echo "$TAG" | cut -d'-' -f1)
+            VERSION=$(echo "$TAG" | cut -d'-' -f2-)
+          else
+            SERVICE=${{ github.event.inputs.service }}
+            VERSION=${{ github.event.inputs.version }}
+          fi
           
           case $SERVICE in
             backend)
@@ -78,6 +89,7 @@ jobs:
           echo "build_context=$BUILD_CONTEXT" >> $GITHUB_OUTPUT
           echo "image_name=$IMAGE_NAME" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "service=$SERVICE" >> $GITHUB_OUTPUT
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
@@ -92,9 +104,10 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Create Git tag
+        if: github.event_name == 'workflow_dispatch'
         run: |
-          SERVICE=${{ github.event.inputs.service }}
-          VERSION=${{ github.event.inputs.version }}
+          SERVICE=${{ steps.service-info.outputs.service }}
+          VERSION=${{ steps.service-info.outputs.version }}
           TAG="${SERVICE}-${VERSION}"
           
           git config user.name "github-actions[bot]"
@@ -114,9 +127,9 @@ jobs:
           echo "✅ Build and push completed successfully!"
           echo ""
           echo "📦 Image Details:"
-          echo "  Service: ${{ github.event.inputs.service }}"
-          echo "  Version: ${{ github.event.inputs.version }}"
+          echo "  Service: ${{ steps.service-info.outputs.service }}"
+          echo "  Version: ${{ steps.service-info.outputs.version }}"
           echo "  Image: ${{ env.REGISTRY }}/${{ steps.service-info.outputs.image_name }}:${{ steps.service-info.outputs.version }}"
-          echo "  Git Tag: ${{ github.event.inputs.service }}-${{ github.event.inputs.version }}"
+          echo "  Trigger: ${{ github.event_name }}"
           echo ""
           echo "🚀 Ready to deploy!"
