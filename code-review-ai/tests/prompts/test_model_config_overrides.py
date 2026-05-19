@@ -21,23 +21,18 @@ class ModelConfigOverrideTests(unittest.TestCase):
         logic_stage = config.get_stage_config("review", "logic")
         fix_hint_stage = config.get_stage_config("review", "fix_hint")
         review_link_stage = config.get_stage_config("review", "review_link")
-        scoring_stage = config.get_stage_config("review", "scoring")
 
-        self.assertEqual(logic_stage.model_name, "fireworks/deepseek-v3p2")
+        self.assertEqual(logic_stage.model_name, "accounts/fireworks/models/glm-5p1")
         self.assertEqual(logic_stage.temperature, 0.1)
         self.assertEqual(logic_stage.max_tokens, 2200)
 
-        self.assertEqual(fix_hint_stage.model_name, "fireworks/deepseek-v3p2")
+        self.assertEqual(fix_hint_stage.model_name, "accounts/fireworks/models/glm-5p1")
         self.assertEqual(fix_hint_stage.temperature, 0.25)
         self.assertEqual(fix_hint_stage.max_tokens, 900)
 
-        self.assertEqual(review_link_stage.model_name, "fireworks/deepseek-v3p2")
+        self.assertEqual(review_link_stage.model_name, "accounts/fireworks/models/glm-5p1")
         self.assertEqual(review_link_stage.temperature, 0.1)
         self.assertEqual(review_link_stage.max_tokens, 1000)
-
-        self.assertEqual(scoring_stage.model_name, "fireworks/deepseek-v3p2")
-        self.assertEqual(scoring_stage.temperature, 0.05)
-        self.assertEqual(scoring_stage.max_tokens, 1800)
 
     def test_stage_specific_recommendation_model_override(self):
         config = build_env_config(
@@ -54,27 +49,26 @@ class ModelConfigOverrideTests(unittest.TestCase):
         self.assertEqual(stage.temperature, 0.05)
         self.assertEqual(stage.max_tokens, 777)
 
-    def test_feature_level_model_override_applies_to_other_stages(self):
+    def test_stage_specific_review_model_override(self):
         config = build_env_config(
             {
                 "FIREWORKS_API_KEY": "test-key",
-                "REVIEW_MODEL": "fireworks/test-review-model",
+                "REVIEW_LOGIC_MODEL": "fireworks/test-review-model",
             }
         )
 
         logic_stage = config.get_stage_config("review", "logic")
-        scoring_stage = config.get_stage_config("review", "scoring")
+        overview_stage = config.get_stage_config("review", "overview")
 
         self.assertEqual(logic_stage.model_name, "fireworks/test-review-model")
-        self.assertEqual(scoring_stage.model_name, "fireworks/test-review-model")
+        self.assertEqual(overview_stage.model_name, "accounts/fireworks/models/qwen3-8b")
         self.assertEqual(logic_stage.max_tokens, 2200)
-        self.assertEqual(scoring_stage.max_tokens, 1800)
+        self.assertEqual(overview_stage.max_tokens, 300)
 
-    def test_stage_specific_override_wins_over_feature_level_model(self):
+    def test_recommendation_stage_overrides_are_isolated(self):
         config = build_env_config(
             {
                 "FIREWORKS_API_KEY": "test-key",
-                "RECOMMENDATION_MODEL": "fireworks/recommendation-default",
                 "RECOMMENDATION_RERANKER_MODEL": "accounts/fireworks/models/reranker-override",
                 "RECOMMENDATION_ROADMAP_BUILDER_MODEL": "fireworks/roadmap-override",
             }

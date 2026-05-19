@@ -280,6 +280,8 @@ export type SubmissionDetailResponse = {
   code: string
   language: string
   testcaseResults: SubmissionDetailTestcaseResponse[]
+  isReviewed?: boolean
+  isRecommend?: boolean
 }
 export type AssignmentProblemResponse = {
   id: string
@@ -340,6 +342,7 @@ export type JudgeExecutionResponse = {
 }
 export type CodeReviewRequest = {
   problemId: string
+  submissionId?: string
   code: string
   language: string
 }
@@ -738,6 +741,16 @@ export const lmsApi = baseApi.injectEndpoints({
       }),
       transformResponse: (response: ApiResponse<CodeReviewResponse>) => response.data,
     }),
+    reviewSubmission: builder.mutation<CodeReviewResponse, string>({
+      query: (submissionId) => ({
+        url: `/reviews/submission/${submissionId}`,
+        method: "POST",
+      }),
+      transformResponse: (response: ApiResponse<CodeReviewResponse>) => response.data,
+      invalidatesTags: (_result, _error, submissionId) => [
+        { type: "Submission" as const, id: submissionId },
+      ],
+    }),
     getRecommendationRoadmap: builder.mutation<RecommendationResponse, RecommendationRequest>({
       query: (body) => ({
         url: "/recommendations",
@@ -749,6 +762,14 @@ export const lmsApi = baseApi.injectEndpoints({
     getRecommendationHistoryByProblem: builder.query<RecommendationHistoryResponse, string>({
       query: (problemId) => `/recommendations/history/problem/${problemId}/me`,
       transformResponse: (response: ApiResponse<RecommendationHistoryResponse>) => response.data ?? [],
+    }),
+    getRecommendationHistoryBySubmission: builder.query<RecommendationHistoryResponse, string>({
+      query: (submissionId) => `/recommendations/history/submission/${submissionId}/me`,
+      transformResponse: (response: ApiResponse<RecommendationHistoryResponse>) => response.data ?? [],
+    }),
+    getSubmissionReviews: builder.query<CodeReviewResponse[], string>({
+      query: (submissionId) => `/reviews/submission/${submissionId}`,
+      transformResponse: (response: ApiResponse<CodeReviewResponse[]>) => response.data ?? [],
     }),
     getProblemReviewsByUser: builder.query<CodeReviewResponse[], GetProblemReviewsByUserRequest>({
       query: ({ problemId, userId }) =>
@@ -1310,10 +1331,13 @@ export const {
   useGetAssignmentTestcasesQuery,
   useLazyGetAssignmentTestcasesQuery,
   useGetProblemSubmissionsQuery,
+  useGetSubmissionReviewsQuery,
   useGetProblemReviewsByUserQuery,
   useJudgeExecutionMutation,
   useReviewCodeMutation,
+  useReviewSubmissionMutation,
   useGetRecommendationRoadmapMutation,
+  useGetRecommendationHistoryBySubmissionQuery,
   useGetRecommendationHistoryByProblemQuery,
   useCreateClassMutation,
   useUpdateClassMutation,
